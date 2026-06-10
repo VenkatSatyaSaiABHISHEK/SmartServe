@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCartStore } from '../store/useCartStore';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Sun, Cloud, Moon, Star } from 'lucide-react';
 
 export function WelcomePage() {
   const navigate = useNavigate();
@@ -31,6 +31,7 @@ export function WelcomePage() {
   // Steps flow: 'splash' | 'welcome'
   const [step, setStep] = useState<'splash' | 'welcome'>('splash');
   const [showPreferenceModal, setShowPreferenceModal] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   // Time based greeting calculation
   const getGreetingData = () => {
@@ -39,35 +40,52 @@ export function WelcomePage() {
       return {
         text: 'Good Morning ☀️',
         type: 'morning',
-        bg: 'from-amber-50 to-orange-100/60',
-        textColor: 'text-amber-800'
+        bg: 'from-orange-500 via-amber-300 to-amber-50',
+        textColor: 'text-amber-950',
+        subText: 'Rise and shine, your table is ready!'
       };
     } else if (hour >= 12 && hour < 19) {
       return {
         text: 'Good Afternoon 👋',
         type: 'afternoon',
-        bg: 'from-blue-50 to-sky-100/60',
-        textColor: 'text-sky-800'
+        bg: 'from-sky-500 via-sky-300 to-sky-50',
+        textColor: 'text-sky-950',
+        subText: 'Delicious meals await your afternoon!'
       };
     } else {
       return {
         text: 'Good Evening 🌙',
         type: 'evening',
-        bg: 'from-slate-900 via-slate-800 to-indigo-950',
-        textColor: 'text-indigo-200'
+        bg: 'from-slate-950 via-slate-900 to-indigo-950',
+        textColor: 'text-indigo-150',
+        subText: 'Unwind with our premium dinner specials.'
       };
     }
   };
 
   const greeting = getGreetingData();
 
-  // Transition from splash to welcome after exactly 3 seconds
+  // Progress Bar ticking
   useEffect(() => {
     if (step === 'splash') {
+      const interval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            return 100;
+          }
+          return prev + 1.25; // Reaches ~100% in 3 seconds
+        });
+      }, 30);
+      
       const timer = setTimeout(() => {
         setStep('welcome');
       }, 3000);
-      return () => clearTimeout(timer);
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timer);
+      };
     }
   }, [step]);
 
@@ -84,110 +102,185 @@ export function WelcomePage() {
           <motion.div
             key="splash-screen"
             initial={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ duration: 0.6, ease: 'easeInOut' }}
-            className={`absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b ${greeting.bg} p-6`}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: 'easeInOut' }}
+            className={`absolute inset-0 flex flex-col items-center justify-between bg-gradient-to-b ${greeting.bg} p-8`}
           >
-            {/* Greeting Animation Content */}
-            <div className="flex flex-col items-center gap-6 text-center">
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.6 }}
-                className="flex items-center gap-2"
-              >
-                <div className="w-12 h-12 bg-white rounded-2xl shadow-md flex items-center justify-center border border-slate-100">
-                  <span className="text-2xl font-black text-blue-600 font-poppins">S</span>
-                </div>
-                <span className={`text-xl font-black tracking-widest ${greeting.type === 'evening' ? 'text-white' : 'text-slate-800'}`}>SMART SERVE</span>
-              </motion.div>
+            {/* Top Brand Header */}
+            <motion.div
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="flex items-center gap-2 mt-8"
+            >
+              <div className="w-10 h-10 bg-white rounded-xl shadow-md flex items-center justify-center border border-slate-100">
+                <span className="text-xl font-black text-blue-600 font-poppins">S</span>
+              </div>
+              <span className={`text-md font-black tracking-widest ${greeting.type === 'evening' ? 'text-white' : 'text-slate-800'}`}>
+                SMART SERVE
+              </span>
+            </motion.div>
 
-              <motion.h2
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.5, duration: 0.6 }}
-                className={`text-2xl font-extrabold tracking-tight ${greeting.textColor}`}
-              >
-                {greeting.text}
-              </motion.h2>
-
-              {/* Time-Based Custom Animations */}
-              <div className="h-40 flex items-center justify-center relative w-64 mt-4">
+            {/* Center Dynamic Premium Animations */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-6 w-full relative">
+              
+              {/* Animation Container */}
+              <div className="h-44 w-full flex items-center justify-center relative">
+                
+                {/* 1. Morning Sunrise Animation */}
                 {greeting.type === 'morning' && (
-                  <motion.div
-                    initial={{ y: 50, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ type: 'spring', stiffness: 80, delay: 0.7 }}
-                    className="relative"
-                  >
-                    {/* Glowing Sun */}
-                    <div className="w-24 h-24 bg-gradient-to-tr from-yellow-400 to-amber-500 rounded-full shadow-lg shadow-amber-500/30 relative flex items-center justify-center">
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    {/* Glowing Sun Rays */}
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 25, ease: 'linear' }}
+                      className="absolute w-36 h-36 border border-dashed border-amber-400/40 rounded-full flex items-center justify-center"
+                    >
+                      <div className="w-32 h-32 border border-dashed border-amber-300/30 rounded-full" />
+                    </motion.div>
+
+                    {/* Rising Sun */}
+                    <motion.div
+                      initial={{ y: 40, scale: 0.8 }}
+                      animate={{ y: 0, scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 50, damping: 10, delay: 0.4 }}
+                      className="relative z-10 w-20 h-20 bg-gradient-to-tr from-yellow-400 to-amber-500 rounded-full shadow-lg shadow-amber-500/40 flex items-center justify-center"
+                    >
+                      {/* Inner sun shine glow */}
                       <motion.div
-                        animate={{ scale: [1, 1.1, 1] }}
-                        transition={{ repeat: Infinity, duration: 3 }}
-                        className="absolute inset-0 bg-yellow-300 rounded-full blur-md opacity-50"
+                        animate={{ scale: [1, 1.15, 1] }}
+                        transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+                        className="absolute inset-0 bg-yellow-300 rounded-full blur-md opacity-40"
                       />
-                    </div>
-                  </motion.div>
+                      <Sun className="w-9 h-9 text-white stroke-[2.5]" />
+                    </motion.div>
+                  </div>
                 )}
 
+                {/* 2. Afternoon Cloud Floating Animation */}
                 {greeting.type === 'afternoon' && (
-                  <div className="relative w-full h-full">
-                    {/* Floating clouds */}
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    {/* Glowing Sun behind clouds */}
                     <motion.div
-                      animate={{ x: [-10, 10, -10] }}
-                      transition={{ repeat: Infinity, duration: 8, ease: 'easeInOut' }}
-                      className="absolute top-8 left-6 text-5xl"
+                      initial={{ scale: 0.7, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.3, duration: 0.6 }}
+                      className="absolute top-10 right-20 w-16 h-16 bg-amber-400 rounded-full blur-sm flex items-center justify-center shadow-lg shadow-amber-500/20"
                     >
-                      ☁️
+                      <Sun className="w-8 h-8 text-white stroke-[2.5]" />
                     </motion.div>
+
+                    {/* Main floating cloud */}
                     <motion.div
-                      animate={{ x: [15, -15, 15] }}
-                      transition={{ repeat: Infinity, duration: 10, ease: 'easeInOut' }}
-                      className="absolute bottom-8 right-6 text-6xl opacity-80"
+                      animate={{ x: [-8, 8, -8], y: [-2, 2, -2] }}
+                      transition={{ repeat: Infinity, duration: 5, ease: 'easeInOut' }}
+                      className="relative z-10 bg-white/80 backdrop-blur-sm px-5 py-3.5 rounded-full border border-slate-100/50 shadow-md flex items-center gap-2"
                     >
-                      ☁️
+                      <Cloud className="w-6 h-6 text-sky-400 fill-sky-100" />
+                      <span className="text-[11px] font-black uppercase text-sky-900 tracking-wider">Afternoon Specials</span>
                     </motion.div>
+
+                    {/* Secondary decorative cloud */}
                     <motion.div
-                      animate={{ scale: [1, 1.05, 1] }}
-                      transition={{ repeat: Infinity, duration: 4 }}
-                      className="text-4xl text-amber-500 absolute top-12 right-16"
+                      animate={{ x: [10, -10, 10] }}
+                      transition={{ repeat: Infinity, duration: 7, ease: 'easeInOut' }}
+                      className="absolute bottom-8 left-16 bg-white/60 backdrop-blur-sm px-4 py-2.5 rounded-full border border-slate-100/30 shadow-sm opacity-80"
                     >
-                      ☀️
+                      <Cloud className="w-4.5 h-4.5 text-sky-300" />
                     </motion.div>
                   </div>
                 )}
 
+                {/* 3. Evening Moonlight & Twinkling Stars Animation */}
                 {greeting.type === 'evening' && (
-                  <div className="relative w-full h-full flex flex-col items-center justify-center">
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    {/* Stars Cluster */}
+                    <div className="absolute inset-0">
+                      {[
+                        { top: '15%', left: '20%', delay: 0 },
+                        { top: '30%', left: '80%', delay: 0.4 },
+                        { top: '70%', left: '25%', delay: 0.8 },
+                        { top: '65%', left: '75%', delay: 1.2 },
+                        { top: '20%', left: '60%', delay: 0.6 }
+                      ].map((star, idx) => (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0.2, scale: 0.6 }}
+                          animate={{ opacity: [0.2, 1, 0.2], scale: [0.6, 1.1, 0.6] }}
+                          transition={{ repeat: Infinity, duration: 2, delay: star.delay }}
+                          className="absolute text-yellow-200"
+                          style={{ top: star.top, left: star.left }}
+                        >
+                          <Star className="w-3.5 h-3.5 fill-yellow-200/50" />
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {/* Crescent Moon */}
                     <motion.div
-                      animate={{ rotate: [0, 5, 0] }}
-                      transition={{ repeat: Infinity, duration: 6, ease: 'easeInOut' }}
-                      className="text-6xl mb-2 drop-shadow-[0_0_15px_rgba(251,243,219,0.3)]"
+                      initial={{ rotate: -15, scale: 0.8, opacity: 0 }}
+                      animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 60, delay: 0.4 }}
+                      className="relative z-10 w-20 h-20 bg-gradient-to-tr from-indigo-200 to-yellow-100 rounded-full shadow-lg shadow-yellow-100/10 flex items-center justify-center"
+                      style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)' }}
                     >
-                      🌙
+                      <Moon className="w-10 h-10 text-indigo-900 fill-indigo-950 stroke-[2.2]" />
                     </motion.div>
-                    {/* Tiny blinking stars */}
-                    <div className="absolute top-6 left-12">
-                      <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.5 }} className="text-xl text-yellow-200">★</motion.span>
-                    </div>
-                    <div className="absolute bottom-6 right-12">
-                      <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 2, delay: 0.5 }} className="text-md text-yellow-200">★</motion.span>
-                    </div>
-                    <div className="absolute top-16 right-8">
-                      <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.8, delay: 0.2 }} className="text-lg text-yellow-200">★</motion.span>
-                    </div>
                   </div>
                 )}
+
+              </div>
+
+              {/* Greeting Text Block */}
+              <div className="text-center space-y-1.5 z-10">
+                <motion.h2
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className={`text-2xl font-black tracking-tight ${greeting.textColor}`}
+                >
+                  {greeting.text}
+                </motion.h2>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.7 }}
+                  transition={{ delay: 0.8 }}
+                  className={`text-xs font-semibold leading-relaxed max-w-[200px] mx-auto ${
+                    greeting.type === 'evening' ? 'text-indigo-300' : 'text-slate-600'
+                  }`}
+                >
+                  {greeting.subText}
+                </motion.p>
               </div>
             </div>
+
+            {/* Bottom Booting Loader */}
+            <div className="w-full max-w-[240px] flex flex-col gap-2 mb-6 z-10">
+              <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-wider">
+                <span className={greeting.type === 'evening' ? 'text-indigo-300' : 'text-slate-400'}>
+                  Preparing Table...
+                </span>
+                <span className={greeting.type === 'evening' ? 'text-white' : 'text-slate-700'}>
+                  {Math.round(loadingProgress)}%
+                </span>
+              </div>
+              <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden border border-white/5">
+                <motion.div
+                  className={`h-full rounded-full bg-gradient-to-r ${
+                    greeting.type === 'evening' ? 'from-indigo-400 to-purple-400' : 'from-blue-600 to-indigo-600'
+                  }`}
+                  style={{ width: `${loadingProgress}%` }}
+                />
+              </div>
+            </div>
+
           </motion.div>
         ) : (
           <motion.div
             key="welcome-screen"
             initial={{ opacity: 0, scale: 1.02 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
             className="absolute inset-0 flex flex-col justify-between p-6 bg-[#ffffff]"
           >
             {/* Background Blobs for Visual Interest */}
