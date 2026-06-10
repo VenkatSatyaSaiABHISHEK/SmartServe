@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, ChefHat, Bike, MapPin, Bell, User } from 'lucide-react';
+import { Check, ChefHat, Bike, MapPin, Bell, User, ChevronLeft } from 'lucide-react';
 import { useOrderStore } from '../store/useOrderStore';
 import { db } from '../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 
 const TIMELINE = [
   { id: 'Confirmed', title: 'Order Confirmed', icon: Check, time: 'Just now' },
@@ -13,6 +14,7 @@ const TIMELINE = [
 ];
 
 export function OrderTrackingPage() {
+  const navigate = useNavigate();
   const status = useOrderStore(state => state.status);
   const estimatedTimeMins = useOrderStore(state => state.estimatedTimeMins);
   const setStatus = useOrderStore(state => state.setStatus);
@@ -69,8 +71,6 @@ export function OrderTrackingPage() {
   // Countdown timer effect (fallback)
   useEffect(() => {
     if (orderId) {
-      // If we are tracking via Firestore, let the ticking happen via now state,
-      // or we can let this timer decrement timeLeft local state between firestore events to keep it smooth!
       if (timeLeft <= 0) return;
       const timer = setInterval(() => {
         setTimeLeft(prev => Math.max(0, prev - 1));
@@ -113,147 +113,151 @@ export function OrderTrackingPage() {
   };
 
   const currentStepIndex = TIMELINE.findIndex(step => step.id === status);
-  const progress = (currentStepIndex / (TIMELINE.length - 1)) * 100;
 
   return (
-    <div className="min-h-screen bg-[#fafafc] pb-12">
+    <div className="h-screen w-full max-w-md mx-auto relative overflow-hidden bg-[#fafafc] flex flex-col font-sans select-none">
+      
       {/* Header */}
-      <div className="px-6 pt-12 pb-6 flex items-center justify-center relative">
-        <h1 className="text-xl font-bold text-slate-800">Track Order</h1>
+      <div className="px-6 pt-6 pb-4 flex items-center justify-between shrink-0 bg-white border-b border-slate-100">
+        <button 
+          onClick={() => navigate('/home')}
+          className="flex items-center gap-1.5 text-xs font-black text-slate-400 hover:text-slate-800 transition-colors uppercase tracking-wider cursor-pointer"
+        >
+          <ChevronLeft className="w-4 h-4" /> Home
+        </button>
+        <h1 className="text-sm font-black text-slate-800 uppercase tracking-widest font-poppins">Track Order</h1>
+        <div className="w-10" /> {/* Spacer */}
       </div>
 
-      {/* Progress Ring */}
-      <div className="flex flex-col items-center justify-center py-8">
-        <div className="relative w-48 h-48 flex items-center justify-center">
-          <svg className="absolute inset-0 w-full h-full -rotate-90">
-            <circle
-              cx="96"
-              cy="96"
-              r="88"
-              fill="none"
-              stroke="#f1f5f9"
-              strokeWidth="8"
-            />
-            <motion.circle
-              cx="96"
-              cy="96"
-              r="88"
-              fill="none"
-              stroke="url(#gradient)"
-              strokeWidth="8"
-              strokeLinecap="round"
-              initial={{ strokeDasharray: "553", strokeDashoffset: "553" }}
-              animate={{ strokeDashoffset: 553 - (553 * elapsedPercent) / 100 }}
-              transition={{ duration: 1, ease: "easeInOut" }}
-            />
-            <defs>
-              <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#3b82f6" />
-                <stop offset="100%" stopColor="#a855f7" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <div className="flex flex-col items-center">
-            <span className="text-3xl font-black text-slate-800 font-poppins">{formatTime(timeLeft)}</span>
-            <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 mt-0.5">{status}</span>
+      {/* Scrollable Track Progress Area */}
+      <div className="flex-1 overflow-y-auto scrollbar-none px-6 py-4 pb-20">
+        
+        {/* Progress Ring */}
+        <div className="flex flex-col items-center justify-center py-6">
+          <div className="relative w-40 h-40 flex items-center justify-center">
+            <svg className="absolute inset-0 w-full h-full -rotate-90">
+              <circle
+                cx="80"
+                cy="80"
+                r="72"
+                fill="none"
+                stroke="#f1f5f9"
+                strokeWidth="6"
+              />
+              <motion.circle
+                cx="80"
+                cy="80"
+                r="72"
+                fill="none"
+                stroke="url(#gradient)"
+                strokeWidth="6"
+                strokeLinecap="round"
+                initial={{ strokeDasharray: "452", strokeDashoffset: "452" }}
+                animate={{ strokeDashoffset: 452 - (452 * elapsedPercent) / 100 }}
+                transition={{ duration: 1, ease: "easeInOut" }}
+              />
+              <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#2563eb" />
+                  <stop offset="100%" stopColor="#4f46e5" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div className="flex flex-col items-center">
+              <span className="text-2xl font-black text-slate-850 font-poppins">{formatTime(timeLeft)}</span>
+              <span className="text-[9px] font-black uppercase tracking-wider text-blue-600 mt-0.5">{status}</span>
+            </div>
+          </div>
+          <p className="mt-4 text-sm font-extrabold text-slate-800 font-poppins text-center">
+            {status === 'Delivered' ? 'Enjoy your food! 🍽️' :
+             status === 'On The Way' ? 'Waiter is serving your food! 🏃‍♂️' :
+             status === 'Preparing' ? (firestoreStatus === 'Ready' ? 'Food plated, waiting for waiter! 🛎️' : 'Chef is cooking your dish! 🍳') :
+             'Order Confirmed & Placed! 📝'}
+          </p>
+        </div>
+
+        {/* Timeline Progress */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-[0_4px_16px_rgba(0,0,0,0.01)] mt-3">
+          <div className="relative border-l border-slate-150 ml-3.5 pb-2">
+            {TIMELINE.map((step, index) => {
+              const Icon = step.icon;
+              const isCompleted = index <= currentStepIndex;
+
+              return (
+                <div key={step.id} className="relative pl-7 pb-6 last:pb-0">
+                  <div 
+                    className={`absolute -left-[14px] top-0.5 w-6 h-6 rounded-full flex items-center justify-center shadow-sm border-2 border-white transition-colors duration-300 ${
+                      isCompleted ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400'
+                    }`}
+                  >
+                    <Icon className="w-3 h-3" />
+                  </div>
+                  
+                  <div className="flex flex-col">
+                    <h4 className={`font-extrabold text-xs ${isCompleted ? 'text-slate-850 font-poppins' : 'text-slate-400'}`}>
+                      {step.title}
+                    </h4>
+                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{step.time}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
-        <p className="mt-6 text-lg font-extrabold text-slate-800 font-poppins">
-          {status === 'Delivered' ? 'Enjoy your food! 🍽️' :
-           status === 'On The Way' ? 'Waiter is serving your food! 🏃‍♂️' :
-           status === 'Preparing' ? (firestoreStatus === 'Ready' ? 'Food plated, waiting for waiter! 🛎️' : 'Chef is cooking your dish! 🍳') :
-           'Order Confirmed & Placed! 📝'}
-        </p>
-      </div>
 
-      {/* Timeline */}
-      <div className="px-8 mt-8">
-        <div className="relative border-l-2 border-slate-100 ml-6 pb-4">
-          {TIMELINE.map((step, index) => {
-            const Icon = step.icon;
-            const isCompleted = index <= currentStepIndex;
-            const isCurrent = index === currentStepIndex;
+        {/* Status Info Cards */}
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
+            <div className="w-9 h-9 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center shrink-0">
+              <ChefHat className="w-4.5 h-4.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Orders Ahead</p>
+              <p className="text-sm font-black text-slate-800 font-poppins">2</p>
+            </div>
+          </div>
 
-            return (
-              <div key={step.id} className="relative pl-8 pb-8 last:pb-0">
-                <div 
-                  className={`absolute -left-[17px] top-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm border-4 border-[#fafafc] transition-colors duration-500 ${
-                    isCompleted ? 'bg-purple-500 text-white' : 'bg-slate-200 text-slate-400'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                </div>
-                
-                <div className="flex flex-col">
-                  <h4 className={`font-bold text-lg ${isCompleted ? 'text-slate-800' : 'text-slate-400'}`}>
-                    {step.title}
-                  </h4>
-                  <p className="text-sm font-medium text-slate-400 mt-0.5">{step.time}</p>
-                </div>
-              </div>
-            );
-          })}
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
+            <div className="w-9 h-9 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center shrink-0">
+              <User className="w-4.5 h-4.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Assigned Waiter</p>
+              <p className="text-sm font-black text-slate-800 font-poppins">John</p>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Info Cards */}
-      <div className="px-6 mt-12 flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-        <div className="min-w-[160px] bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 flex flex-col gap-3">
-          <div className="w-10 h-10 bg-orange-50 text-orange-500 rounded-2xl flex items-center justify-center">
-            <ChefHat className="w-5 h-5" />
+        {/* Live Notification Card */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 text-white flex items-start gap-3 mt-4 shadow-md shadow-blue-500/10">
+          <div className="bg-white/20 p-2 rounded-xl shrink-0 text-white">
+            <Bell className="w-4.5 h-4.5" />
           </div>
           <div>
-            <p className="text-sm text-slate-500 font-medium">Orders Ahead</p>
-            <p className="text-xl font-bold text-slate-800">2</p>
-          </div>
-        </div>
-
-        <div className="min-w-[160px] bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 flex flex-col gap-3">
-          <div className="w-10 h-10 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
-            <User className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Assigned Waiter</p>
-            <p className="text-xl font-bold text-slate-800">John</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-6 mt-4">
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-[24px] p-6 text-white flex items-start gap-4 shadow-xl shadow-purple-500/20">
-          <div className="bg-white/20 p-3 rounded-2xl shrink-0">
-            <Bell className="w-6 h-6" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <h4 className="font-bold text-lg">Notification</h4>
-            <p className="text-white/80 text-sm leading-relaxed">
+            <h4 className="font-extrabold text-xs font-poppins">Notification</h4>
+            <p className="text-white/80 text-[10px] font-semibold leading-relaxed mt-0.5">
               We will notify you when your order is on the way.
             </p>
           </div>
         </div>
-      </div>
 
-      {/* Order Bill Summary */}
-      {orderPrice !== null && (
-        <div className="px-6 mt-6">
-          <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 flex justify-between items-center">
+        {/* Order Payment Summary Card */}
+        {orderPrice !== null && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center mt-4">
             <div>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Amount Paid</p>
-              <h3 className="text-xl font-black text-slate-800 font-poppins mt-0.5">₹{orderPrice.toFixed(2)}</h3>
+              <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Amount Paid</p>
+              <h3 className="text-base font-black text-slate-800 font-poppins mt-0.5">₹{orderPrice.toFixed(2)}</h3>
             </div>
             <div className="text-right">
-              <span className={`inline-block text-[9.5px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                orderPaymentStatus === 'Paid' 
-                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
-                  : 'bg-amber-50 text-amber-600 border border-amber-100'
-              }`}>
+              <span className="inline-block text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-md">
                 {orderPaymentStatus || 'Paid'}
               </span>
-              <p className="text-[10px] text-slate-400 font-semibold mt-1">via {orderPaymentMethod?.toUpperCase() || 'GPAY'}</p>
+              <p className="text-[9.5px] text-slate-400 font-bold mt-1">via {orderPaymentMethod?.toUpperCase() || 'GPAY'}</p>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+      </div>
     </div>
   );
 }

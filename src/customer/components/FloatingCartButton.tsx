@@ -18,7 +18,7 @@ export function FloatingCartButton({ onClick }: FloatingCartButtonProps) {
           exit={{ y: 100, opacity: 0 }}
           whileTap={{ scale: 0.9 }}
           onClick={onClick}
-          className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-full flex items-center gap-3 px-6 py-4 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] z-40 border border-slate-700/50 backdrop-blur-md"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white rounded-full flex items-center gap-3 px-6 py-4 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] z-40 border border-slate-700/50 backdrop-blur-md"
         >
           <div className="relative">
             <ShoppingBag className="w-5 h-5" />
