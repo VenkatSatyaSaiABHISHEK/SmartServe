@@ -1,10 +1,19 @@
+import { useState, useEffect } from 'react';
 import { useChefStore } from '../../chef/store/useChefStore';
-import { ChefHat, AlertCircle, Send, Play, CheckCircle2, History, MessageSquareCode } from 'lucide-react';
-import { useState } from 'react';
+import { ChefHat, Flame, Coffee, CheckCircle, Clock, Send, AlertTriangle, ArrowRight } from 'lucide-react';
 
 export function KitchenDisplayPage() {
   const { chefs, orders } = useChefStore();
   const [messages, setMessages] = useState<Record<string, string>>({});
+  const [now, setNow] = useState(Date.now());
+
+  // Tick the local state timer every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getChefActiveOrders = (chefId: string) => {
     return orders.filter(o => o.assignedChefId === chefId && o.status !== 'Completed');
@@ -13,112 +22,300 @@ export function KitchenDisplayPage() {
   const handleSendChefAlert = (chefId: string) => {
     const text = messages[chefId];
     if (!text) return;
-    alert(`Alert sent to ${chefs.find(c => c.id === chefId)?.name} KDS Screen: "${text}" 💬`);
+    alert(`Alert sent to ${chefs.find(c => c.id === chefId)?.name} KDS screen: "${text}" 💬`);
     setMessages(prev => ({ ...prev, [chefId]: '' }));
   };
 
+  // Helper to format MM:SS
+  const formatTime = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Filters for orders log
+  const incomingOrders = orders.filter(o => o.status === 'New').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const readyOrders = orders.filter(o => o.status === 'Ready').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
   return (
-    <div className="space-y-6 pb-10">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 space-y-6 font-sans">
+      
+      {/* KDS TV Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900 border border-slate-800 rounded-3xl p-6 gap-4">
         <div>
-          <h1 className="text-2xl font-black text-[#0f172a] font-poppins tracking-tight">KDS CONSOLE MIRROR</h1>
-          <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">
-            Real-time mirror of active chef prep stations and kitchen workloads.
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-2xl">
+              <ChefHat className="w-8 h-8 text-purple-400 animate-pulse" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight font-poppins text-white uppercase">Kitchen Display System (KDS)</h1>
+              <p className="text-xs font-bold text-slate-400 mt-0.5 uppercase tracking-widest">HQ Big-TV Command Console Mirror</p>
+            </div>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-purple-50 text-[#7c3aed] border border-purple-100 rounded-xl text-[11.5px] font-black uppercase tracking-wider">
-          <ChefHat className="w-4 h-4 text-purple-500 animate-pulse" />
-          <span>Kitchen Live Stream</span>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-semibold">
+            <span className="h-2.5 w-2.5 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="text-slate-300">Live Station Ticker Sync: Active</span>
+          </div>
+          <span className="text-xs font-bold text-slate-500">
+            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </span>
         </div>
       </div>
 
-      {/* Chefs Side-by-side Mirror */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {chefs.map((chef) => {
-          const activeOrders = getChefActiveOrders(chef.id);
-          const activeLoad = activeOrders.length;
-          const isFull = activeLoad >= 2;
+      {/* Main KDS Grid Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        
+        {/* Chef Stations (Col span 8) */}
+        <div className="xl:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          {chefs.map((chef) => {
+            const activeOrders = getChefActiveOrders(chef.id);
+            const activeOrder = activeOrders.find(o => o.status === 'Preparing');
+            const queueOrders = activeOrders.filter(o => o.status === 'New');
+            
+            const onBreak = chef.breakUntil && now < chef.breakUntil;
+            const breakSecsLeft = onBreak ? Math.max(0, Math.round((chef.breakUntil! - now) / 1000)) : 0;
 
-          return (
-            <div key={chef.id} className="bg-white border border-[#f1f5f9] rounded-[28px] overflow-hidden shadow-sm flex flex-col h-[525px] justify-between">
-              <div>
-                {/* Chef station header */}
-                <div className="p-5 border-b border-[#f1f5f9] bg-slate-50/50 flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <img src={chef.avatar} alt={chef.name} className="w-10 h-10 rounded-[14px] object-cover border border-slate-200" />
-                    <div>
-                      <h4 className="font-extrabold text-[14px] text-[#0f172a] font-poppins leading-tight">{chef.name}</h4>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 block">{chef.id} Console</span>
+            let cookSecsLeft = 0;
+            let cookElapsedPercent = 0;
+            if (activeOrder && activeOrder.completedAt && activeOrder.startedPreparingAt) {
+              const totalSecs = Math.round((activeOrder.completedAt - activeOrder.startedPreparingAt) / 1000);
+              cookSecsLeft = Math.max(0, Math.round((activeOrder.completedAt - now) / 1000));
+              cookElapsedPercent = totalSecs > 0 ? ((totalSecs - cookSecsLeft) / totalSecs) * 100 : 0;
+            }
+
+            return (
+              <div key={chef.id} className="bg-slate-900 border border-slate-800/80 rounded-[32px] overflow-hidden flex flex-col h-[560px] justify-between shadow-xl">
+                
+                {/* Station Title Banner */}
+                <div>
+                  <div className="p-4 border-b border-slate-800 bg-slate-950/40 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <img src={chef.avatar} alt={chef.name} className="w-10 h-10 rounded-xl object-cover border border-slate-800" />
+                      <div>
+                        <h4 className="font-extrabold text-[13.5px] text-white font-poppins leading-tight">{chef.name}</h4>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-0.5 block">{chef.id} Terminal</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <span className={`text-[9.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg ${
-                      isFull ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-green-50 text-green-500 border border-green-100'
+                    
+                    <span className={`text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border ${
+                      onBreak ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 
+                      activeOrder ? 'bg-orange-500/10 text-orange-400 border-orange-500/20 animate-pulse' :
+                      'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                     }`}>
-                      {isFull ? 'STATION FULL' : 'AVAILABLE'}
+                      {onBreak ? 'BREAK' : activeOrder ? 'COOKING' : 'STANDBY'}
                     </span>
                   </div>
-                </div>
 
-                {/* Orders Queue */}
-                <div className="p-4.5 space-y-3.5 max-h-[330px] overflow-y-auto scrollbar-none">
-                  {activeOrders.length === 0 ? (
-                    <div className="py-12 flex flex-col items-center justify-center text-center text-slate-400">
-                      <ChefHat className="w-10 h-10 stroke-[1.2] text-slate-300 mb-2.5" />
-                      <p className="text-[11px] font-bold">No Active Tickets</p>
-                    </div>
-                  ) : (
-                    activeOrders.map((order) => (
-                      <div key={order.id} className="bg-[#fafafc] border border-[#f1f5f9] rounded-2xl p-4.5 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="font-black text-xs text-[#0f172a]">{order.id}</span>
-                            <span className="text-[10px] font-bold text-slate-400 ml-2">Table {order.tableNumber}</span>
-                          </div>
-                          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                            order.status === 'New' ? 'bg-blue-50 text-blue-600' :
-                            order.status === 'Preparing' ? 'bg-amber-50 text-amber-600' :
-                            'bg-green-50 text-green-600'
-                          }`}>
-                            {order.status}
-                          </span>
+                  {/* Active Station State Screen */}
+                  <div className="p-4 border-b border-slate-800 bg-slate-950/20 min-h-[170px] flex items-center justify-center">
+                    {onBreak ? (
+                      <div className="text-center space-y-2.5 w-full">
+                        <div className="inline-flex p-3 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-2xl animate-bounce">
+                          <Coffee className="w-6 h-6" />
                         </div>
-
-                        <div className="space-y-1">
-                          {order.items.map((item, idx) => (
-                            <div key={idx} className="flex justify-between text-xs font-bold text-slate-600">
-                              <span className="truncate max-w-[180px]">{item.name}</span>
-                              <span className="text-slate-400">x{item.quantity}</span>
-                            </div>
-                          ))}
+                        <h5 className="text-xs font-black uppercase text-indigo-300 tracking-wider">Chef Recuperation</h5>
+                        <p className="text-3xl font-black text-white font-poppins">{formatTime(breakSecsLeft)}</p>
+                        <div className="w-40 bg-slate-800 h-1.5 rounded-full overflow-hidden mx-auto">
+                          <div 
+                            className="h-full bg-indigo-500" 
+                            style={{ width: `${(breakSecsLeft / 300) * 100}%` }}
+                          />
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </div>
+                    ) : activeOrder ? (
+                      <div className="w-full flex items-center gap-4">
+                        <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
+                          {/* Circle countdown */}
+                          <svg className="absolute inset-0 w-full h-full -rotate-90">
+                            <circle cx="48" cy="48" r="40" fill="none" stroke="#1e293b" strokeWidth="4" />
+                            <circle 
+                              cx="48" 
+                              cy="48" 
+                              r="40" 
+                              fill="none" 
+                              stroke="#f59e0b" 
+                              strokeWidth="4" 
+                              strokeLinecap="round"
+                              strokeDasharray="251"
+                              strokeDashoffset={251 - (251 * cookElapsedPercent) / 100}
+                            />
+                          </svg>
+                          <span className="text-lg font-black text-white font-poppins">{formatTime(cookSecsLeft)}</span>
+                        </div>
+                        
+                        <div className="flex-1 space-y-1.5 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-black text-orange-400">{activeOrder.id}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">T{activeOrder.tableNumber}</span>
+                          </div>
+                          <div className="max-h-[60px] overflow-y-auto space-y-0.5 pr-1">
+                            {activeOrder.items.map((item, idx) => (
+                              <div key={idx} className="flex justify-between text-[11px] font-semibold text-slate-300">
+                                <span className="truncate">{item.name}</span>
+                                <span className="text-slate-500">x{item.quantity}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center text-slate-500 space-y-2">
+                        <div className="inline-flex p-3 bg-slate-800/40 text-slate-500 border border-slate-800 rounded-2xl">
+                          <CheckCircle className="w-6 h-6" />
+                        </div>
+                        <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Station Standby</h5>
+                        <p className="text-[10px] font-semibold text-slate-500/80 max-w-[170px] mx-auto">Idle & ready to receive load balanced orders.</p>
+                      </div>
+                    )}
+                  </div>
 
-              {/* Station alert communication drawer */}
-              <div className="p-4.5 border-t border-[#f1f5f9] bg-slate-50/30 flex gap-2">
-                <input
-                  type="text"
-                  placeholder={`Alert ${chef.id}...`}
-                  value={messages[chef.id] || ''}
-                  onChange={(e) => setMessages(prev => ({ ...prev, [chef.id]: e.target.value }))}
-                  className="w-full bg-white border border-[#f1f5f9] rounded-xl px-3 py-2 text-xs font-bold text-[#0f172a] focus:outline-none focus:border-slate-300"
-                />
-                <button
-                  onClick={() => handleSendChefAlert(chef.id)}
-                  className="bg-slate-900 text-white hover:bg-slate-800 p-2 rounded-xl shadow-sm cursor-pointer shrink-0"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
+                  {/* Active station queue log */}
+                  <div className="p-4 space-y-3.5">
+                    <h5 className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Queue Roster ({queueOrders.length})</h5>
+                    
+                    <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                      {queueOrders.length === 0 ? (
+                        <p className="text-[11px] font-bold text-slate-600 italic">No pending queues.</p>
+                      ) : (
+                        queueOrders.map((order) => (
+                          <div key={order.id} className="bg-slate-950/40 border border-slate-800 rounded-xl p-2.5 flex justify-between items-center text-xs">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-extrabold text-slate-300">{order.id}</span>
+                                <span className="text-[9px] font-bold text-slate-500">Table {order.tableNumber}</span>
+                              </div>
+                              <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">
+                                {order.items.map(i => `${i.name} x${i.quantity}`).join(', ')}
+                              </p>
+                            </div>
+                            <span className="text-[9px] font-black text-slate-400 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded">
+                              ⏱️ {order.prepTimeMins}m
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Station Messaging Box */}
+                <div className="p-4 border-t border-slate-800/60 bg-slate-950/30 flex gap-2">
+                  <input
+                    type="text"
+                    placeholder={`Alert ${chef.name}...`}
+                    value={messages[chef.id] || ''}
+                    onChange={(e) => setMessages(prev => ({ ...prev, [chef.id]: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-purple-500/50"
+                  />
+                  <button
+                    onClick={() => handleSendChefAlert(chef.id)}
+                    className="bg-purple-600 text-white hover:bg-purple-500 p-2 rounded-xl cursor-pointer shrink-0"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
               </div>
+            );
+          })}
+        </div>
+
+        {/* Side Feeds (Col span 4) */}
+        <div className="xl:col-span-4 space-y-6">
+          
+          {/* Incoming Orders Feed */}
+          <div className="bg-slate-900 border border-slate-800 rounded-[32px] p-5 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-blue-400" />
+                <h3 className="text-xs font-black uppercase text-white tracking-widest">Incoming Orders</h3>
+              </div>
+              <span className="text-[10px] font-black bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md">
+                {incomingOrders.length} Pending
+              </span>
             </div>
-          );
-        })}
+
+            <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1">
+              {incomingOrders.length === 0 ? (
+                <div className="py-8 text-center text-slate-600 text-xs font-semibold italic">
+                  No incoming orders pending.
+                </div>
+              ) : (
+                incomingOrders.map((order) => (
+                  <div key={order.id} className="bg-slate-950 border border-slate-800/80 rounded-2xl p-3.5 flex justify-between items-center gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-xs text-blue-400">{order.id}</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase">T{order.tableNumber}</span>
+                      </div>
+                      <p className="text-[11px] font-semibold text-slate-300 truncate">
+                        {order.items.map(i => `${i.name} x${i.quantity}`).join(', ')}
+                      </p>
+                    </div>
+                    
+                    <div className="shrink-0 text-right">
+                      <span className="text-[9.5px] font-black bg-slate-800 border border-slate-700 text-slate-300 px-2 py-0.5 rounded-md block">
+                        ⏱️ {order.prepTimeMins}m
+                      </span>
+                      <span className="text-[8px] font-black text-slate-500 uppercase mt-1.5 block">
+                        {chefs.find(c => c.id === order.assignedChefId)?.name || 'Assigned'}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Plated / Ready Pass-through Feed */}
+          <div className="bg-slate-900 border border-slate-800 rounded-[32px] p-5 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-xs font-black uppercase text-white tracking-widest">Awaiting pickup pass</h3>
+              </div>
+              <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                {readyOrders.length} Ready
+              </span>
+            </div>
+
+            <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1">
+              {readyOrders.length === 0 ? (
+                <div className="py-8 text-center text-slate-600 text-xs font-semibold italic">
+                  Pass-through counter is clear.
+                </div>
+              ) : (
+                readyOrders.map((order) => (
+                  <div key={order.id} className="bg-emerald-950/10 border border-emerald-900/30 rounded-2xl p-3.5 flex justify-between items-center gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-xs text-emerald-400">{order.id}</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase">Table {order.tableNumber}</span>
+                      </div>
+                      <p className="text-[11px] font-semibold text-slate-300 truncate">
+                        {order.items.map(i => `${i.name} x${i.quantity}`).join(', ')}
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 text-right">
+                      <span className="text-[9.5px] font-black text-emerald-400 bg-emerald-950 border border-emerald-800 px-2.5 py-0.5 rounded-lg block">
+                        READY 🛎️
+                      </span>
+                      <span className="text-[8px] font-bold text-slate-500 mt-1 block uppercase">
+                        By {chefs.find(c => c.id === order.assignedChefId)?.name}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+        </div>
+
       </div>
     </div>
   );

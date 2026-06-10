@@ -1,27 +1,12 @@
 import { useState } from 'react';
+import { useAdminStore } from '../store/useAdminStore';
 import { useChefStore } from '../../chef/store/useChefStore';
-import { Search, UserPlus, Star, Award, ShieldAlert, Cpu } from 'lucide-react';
+import { Search, UserPlus, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface StaffChef {
-  id: string;
-  name: string;
-  section: string;
-  avatar: string;
-  rating: number;
-  ordersPrepared: number;
-  shiftWindow: string;
-}
-
-const INITIAL_STAFF_CHEFS: StaffChef[] = [
-  { id: 'C1', name: 'Chef Ramsay', section: 'Grill & Entrées', rating: 4.9, ordersPrepared: 242, avatar: 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?q=80&w=120&auto=format&fit=crop', shiftWindow: '04:00 PM - Midnight' },
-  { id: 'C2', name: 'Chef Bourdain', section: 'Sauté & Pastry', rating: 4.8, ordersPrepared: 198, avatar: 'https://images.unsplash.com/photo-1583394838336-acd977736f90?q=80&w=120&auto=format&fit=crop', shiftWindow: '04:00 PM - Midnight' },
-  { id: 'C3', name: 'Chef Chang', section: 'Appetizers & Salads', rating: 4.7, ordersPrepared: 156, avatar: 'https://images.unsplash.com/photo-1595273670150-db0a3e390294?q=80&w=120&auto=format&fit=crop', shiftWindow: '06:00 PM - 02:00 AM' }
-];
-
 export function ChefManagementPage() {
+  const { chefs, addChef, updateChefSection } = useAdminStore();
   const chefStore = useChefStore();
-  const [chefsList, setChefsList] = useState<StaffChef[]>(INITIAL_STAFF_CHEFS);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -30,35 +15,33 @@ export function ChefManagementPage() {
   const [section, setSection] = useState('Grill & Entrées');
   const [avatar, setAvatar] = useState('');
   const [shiftWindow, setShiftWindow] = useState('04:00 PM - Midnight');
+  const [pin, setPin] = useState('');
 
   const handleAddChef = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name) return;
+    if (!name || !pin) return;
 
-    const nextId = `C${chefsList.length + 1}`;
-    const newChef: StaffChef = {
-      id: nextId,
+    addChef({
       name,
       section,
       avatar: avatar || 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?q=80&w=120&auto=format&fit=crop',
-      rating: 5.0,
-      ordersPrepared: 0,
-      shiftWindow
-    };
+      shiftWindow,
+      pin
+    });
 
-    setChefsList(prev => [...prev, newChef]);
     setName('');
     setAvatar('');
+    setPin('');
     setShowAddForm(false);
   };
 
   const handleSectionChange = (chefId: string, newSection: string) => {
-    setChefsList(prev => prev.map(c => c.id === chefId ? { ...c, section: newSection } : c));
+    updateChefSection(chefId, newSection);
   };
 
-  const filteredChefs = chefsList.filter(c => 
+  const filteredChefs = chefs.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.section.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (c.section && c.section.toLowerCase().includes(searchQuery.toLowerCase())) ||
     c.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -134,6 +117,20 @@ export function ChefManagementPage() {
                 </div>
 
                 <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-1">4-Digit Access PIN</label>
+                  <input
+                    type="text"
+                    required
+                    pattern="[0-9]{4}"
+                    maxLength={4}
+                    placeholder="e.g. 1234"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="w-full bg-[#fafafc] border border-[#f1f5f9] rounded-xl px-4 py-3 text-xs font-bold text-[#0f172a] focus:outline-none focus:border-slate-400"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-1">Avatar Image URL (Optional)</label>
                   <input
                     type="url"
@@ -192,7 +189,7 @@ export function ChefManagementPage() {
                   <img src={chef.avatar} alt={chef.name} className="w-12 h-12 rounded-[16px] object-cover border border-slate-100" />
                   <div>
                     <h4 className="font-extrabold text-[15px] text-[#0f172a] font-poppins leading-tight">{chef.name}</h4>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 block">{chef.id} Station</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 block">{chef.id} Station • PIN: {chef.pin || 'N/A'}</span>
                   </div>
                 </div>
 

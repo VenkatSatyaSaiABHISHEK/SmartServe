@@ -1,27 +1,10 @@
 import { useState } from 'react';
-import { Search, UserPlus, Star, Award, ShieldAlert, BadgeInfo, CheckCircle } from 'lucide-react';
+import { useAdminStore } from '../store/useAdminStore';
+import { Search, UserPlus, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface StaffWaiter {
-  id: string;
-  name: string;
-  email: string;
-  status: 'Active' | 'On Break' | 'Offline';
-  rating: number;
-  ordersDelivered: number;
-  tipsToday: number;
-  avatar: string;
-}
-
-const MOCK_WAITERS: StaffWaiter[] = [
-  { id: 'W-01', name: 'John Doe', email: 'john.doe@restaurant.com', status: 'Active', rating: 4.9, ordersDelivered: 24, tipsToday: 42.50, avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=120&auto=format&fit=crop' },
-  { id: 'W-02', name: 'Sarah Connor', email: 'sarah.c@restaurant.com', status: 'On Break', rating: 4.8, ordersDelivered: 18, tipsToday: 30.00, avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=120&auto=format&fit=crop' },
-  { id: 'W-03', name: 'Liam Neeson', email: 'liam.n@restaurant.com', status: 'Active', rating: 4.7, ordersDelivered: 21, tipsToday: 35.80, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=120&auto=format&fit=crop' },
-  { id: 'W-04', name: 'Emma Watson', email: 'emma.w@restaurant.com', status: 'Offline', rating: 5.0, ordersDelivered: 32, tipsToday: 65.00, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=120&auto=format&fit=crop' }
-];
-
 export function WaiterManagementPage() {
-  const [waiters, setWaiters] = useState<StaffWaiter[]>(MOCK_WAITERS);
+  const { waiters, addWaiter, updateWaiterStatus } = useAdminStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   
@@ -29,30 +12,28 @@ export function WaiterManagementPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [avatar, setAvatar] = useState('');
+  const [pin, setPin] = useState('');
 
-  const handleStatusChange = (id: string, status: StaffWaiter['status']) => {
-    setWaiters(prev => prev.map(w => w.id === id ? { ...w, status } : w));
+  const handleStatusChange = (id: string, status: any) => {
+    updateWaiterStatus(id, status);
   };
 
   const handleAddWaiter = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email) return;
+    if (!name || !email || !pin) return;
 
-    const newWaiter: StaffWaiter = {
-      id: `W-0${waiters.length + 1}`,
+    addWaiter({
       name,
       email,
-      status: 'Offline',
-      rating: 5.0,
-      ordersDelivered: 0,
-      tipsToday: 0.00,
-      avatar: avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=120&auto=format&fit=crop'
-    };
+      avatar: avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=120&auto=format&fit=crop',
+      pin,
+      onlineStatus: false
+    });
 
-    setWaiters(prev => [...prev, newWaiter]);
     setName('');
     setEmail('');
     setAvatar('');
+    setPin('');
     setShowAddForm(false);
   };
 
@@ -119,7 +100,21 @@ export function WaiterManagementPage() {
                   />
                 </div>
 
-                <div className="md:col-span-2 space-y-1.5">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-1">4-Digit Access PIN</label>
+                  <input
+                    type="text"
+                    required
+                    pattern="[0-9]{4}"
+                    maxLength={4}
+                    placeholder="e.g. 1234"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="w-full bg-[#fafafc] border border-[#f1f5f9] rounded-xl px-4 py-3 text-xs font-bold text-[#0f172a] focus:outline-none focus:border-slate-400"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-1">Avatar Image URL (Optional)</label>
                   <input
                     type="url"
@@ -192,15 +187,15 @@ export function WaiterManagementPage() {
                         <img src={waiter.avatar} alt={waiter.name} className="w-10 h-10 rounded-[14px] object-cover border border-slate-100" />
                         <div>
                           <div className="font-extrabold text-[#0f172a] font-poppins">{waiter.name}</div>
-                          <div className="text-[10px] text-slate-400 font-semibold mt-0.5">{waiter.id} • {waiter.email}</div>
+                          <div className="text-[10px] text-slate-400 font-semibold mt-0.5">{waiter.id} • PIN: {waiter.pin || 'N/A'} • {waiter.email}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-5">
-                      <span className="text-[#0f172a] font-black">{waiter.ordersDelivered} orders</span>
+                      <span className="text-[#0f172a] font-black">{waiter.totalDeliveries} orders</span>
                     </td>
                     <td className="px-6 py-5">
-                      <div className="text-emerald-600 font-black">${waiter.tipsToday.toFixed(2)}</div>
+                      <div className="text-emerald-600 font-black">${(waiter.todayTips || 0).toFixed(2)}</div>
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-1 text-amber-500 font-black">
@@ -209,11 +204,11 @@ export function WaiterManagementPage() {
                       </div>
                     </td>
                     <td className="px-6 py-5">
-                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${statusStyles[waiter.status]}`}>
-                        {waiter.status}
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${statusStyles[waiter.status || 'Offline']}`}>
+                        {waiter.status || 'Offline'}
                       </span>
                     </td>
-                    <td className="px-6 py-5 text-right">
+                    <td className="px-6 py-5 text-right flex items-center justify-end gap-2.5 min-w-[200px]">
                       <select
                         value={waiter.status}
                         onChange={(e) => handleStatusChange(waiter.id, e.target.value as any)}
@@ -223,6 +218,16 @@ export function WaiterManagementPage() {
                         <option value="On Break">On Break</option>
                         <option value="Offline">Offline</option>
                       </select>
+                      
+                      {(waiter.status === 'Active' || waiter.status === 'On Break') && (
+                        <button
+                          onClick={() => handleStatusChange(waiter.id, 'Offline')}
+                          className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer transition-colors shadow-sm"
+                          title="Force clock-out and stop shift"
+                        >
+                          Stop Shift
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

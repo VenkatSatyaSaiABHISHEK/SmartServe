@@ -18,7 +18,7 @@ export function ProfilePage() {
     <div className="flex flex-col gap-6 font-sans select-none">
       {/* Bio Card */}
       <div className="bg-white rounded-[28px] border border-[#f1f5f9] p-6 shadow-sm flex flex-col items-center text-center relative overflow-hidden">
-        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-[#7c3aed] to-[#6366f1]" />
+        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-blue-600 to-indigo-600" />
         
         <div className="relative mt-2">
           <img 
@@ -37,7 +37,7 @@ export function ProfilePage() {
         <p className="text-slate-400 text-xs font-semibold">{waiter.email}</p>
 
         <div className="flex gap-2.5 mt-4">
-          <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-100 uppercase tracking-wider">
+          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 uppercase tracking-wider">
             ID: {waiter.id}
           </span>
           <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 uppercase tracking-wider flex items-center gap-1">
@@ -68,7 +68,7 @@ export function ProfilePage() {
       {/* Settings Panel */}
       <div className="bg-white p-5 rounded-[28px] border border-[#f1f5f9] shadow-sm flex flex-col gap-4">
         <h3 className="font-bold text-[#0f172a] text-[15px] font-poppins flex items-center gap-2 border-b border-slate-50 pb-3">
-          <Bell className="w-4.5 h-4.5 text-[#7c3aed]" />
+          <Bell className="w-4.5 h-4.5 text-blue-600" />
           Terminal Settings
         </h3>
 
@@ -82,10 +82,10 @@ export function ProfilePage() {
           </div>
           <button 
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className="text-purple-600 transition-transform active:scale-90 cursor-pointer"
+            className="text-blue-600 transition-transform active:scale-90 cursor-pointer"
           >
             {soundEnabled ? (
-              <ToggleRight className="w-10 h-10 text-[#7c3aed] stroke-[1.2]" />
+              <ToggleRight className="w-10 h-10 text-blue-600 stroke-[1.2]" />
             ) : (
               <ToggleLeft className="w-10 h-10 text-slate-300 stroke-[1.2]" />
             )}
@@ -102,10 +102,10 @@ export function ProfilePage() {
           </div>
           <button 
             onClick={() => setVibrationEnabled(!vibrationEnabled)}
-            className="text-purple-600 transition-transform active:scale-90 cursor-pointer"
+            className="text-blue-600 transition-transform active:scale-90 cursor-pointer"
           >
             {vibrationEnabled ? (
-              <ToggleRight className="w-10 h-10 text-[#7c3aed] stroke-[1.2]" />
+              <ToggleRight className="w-10 h-10 text-blue-600 stroke-[1.2]" />
             ) : (
               <ToggleLeft className="w-10 h-10 text-slate-300 stroke-[1.2]" />
             )}
@@ -122,10 +122,10 @@ export function ProfilePage() {
           </div>
           <button 
             onClick={() => setAutoSync(!autoSync)}
-            className="text-purple-600 transition-transform active:scale-90 cursor-pointer"
+            className="text-blue-600 transition-transform active:scale-90 cursor-pointer"
           >
             {autoSync ? (
-              <ToggleRight className="w-10 h-10 text-[#7c3aed] stroke-[1.2]" />
+              <ToggleRight className="w-10 h-10 text-blue-600 stroke-[1.2]" />
             ) : (
               <ToggleLeft className="w-10 h-10 text-slate-300 stroke-[1.2]" />
             )}

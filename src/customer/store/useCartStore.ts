@@ -11,6 +11,8 @@ export interface CartItem {
 interface CartState {
   items: CartItem[];
   dietPreference: 'all' | 'veg' | 'non-veg';
+  tableNumber: number;
+  guestsCount: number;
   addItem: (item: CartItem) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -18,12 +20,18 @@ interface CartState {
   getCartTotal: () => number;
   getCartCount: () => number;
   setDietPreference: (preference: 'all' | 'veg' | 'non-veg') => void;
+  setTableNumber: (num: number) => void;
+  setGuestsCount: (num: number) => void;
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   dietPreference: 'all',
+  tableNumber: 12,
+  guestsCount: 4,
   setDietPreference: (preference) => set({ dietPreference: preference }),
+  setTableNumber: (num) => set({ tableNumber: num }),
+  setGuestsCount: (num) => set({ guestsCount: num }),
   addItem: (newItem) => set((state) => {
     const existingItem = state.items.find(item => item.id === newItem.id);
     if (existingItem) {

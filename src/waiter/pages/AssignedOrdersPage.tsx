@@ -31,7 +31,7 @@ export function AssignedOrdersPage() {
           onClick={() => setActiveTab('collect')}
           className={`flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
             activeTab === 'collect' 
-              ? 'bg-white text-[#7c3aed] shadow-sm' 
+              ? 'bg-white text-blue-600 shadow-sm' 
               : 'text-slate-500 hover:text-slate-800'
           }`}
         >
@@ -42,7 +42,7 @@ export function AssignedOrdersPage() {
           onClick={() => setActiveTab('deliver')}
           className={`flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
             activeTab === 'deliver' 
-              ? 'bg-white text-[#7c3aed] shadow-sm' 
+              ? 'bg-white text-blue-600 shadow-sm' 
               : 'text-slate-500 hover:text-slate-800'
           }`}
         >
@@ -78,7 +78,7 @@ export function AssignedOrdersPage() {
                   >
                     <div className="flex justify-between items-start">
                       <div className="cursor-pointer" onClick={() => navigate(`/waiter/order/${order.id}`)}>
-                        <span className="text-[11px] font-bold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-100">
+                        <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
                           {order.id}
                         </span>
                         <h3 className="font-extrabold text-[#0f172a] text-lg mt-2 font-poppins">
@@ -105,7 +105,7 @@ export function AssignedOrdersPage() {
                       <p className="text-[12px] font-bold text-[#64748b]">Total: <strong className="text-[#0f172a] text-[15px] font-black font-poppins">${order.price.toFixed(2)}</strong></p>
                       <button 
                         onClick={() => updateOrderStatus(order.id, 'Picked Up')}
-                        className="bg-gradient-to-r from-[#7c3aed] to-[#6366f1] text-white px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider shadow-md shadow-purple-500/10 active:scale-95 transition-all cursor-pointer"
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider shadow-md shadow-blue-500/10 active:scale-95 transition-all cursor-pointer"
                       >
                         Collect Food
                       </button>
@@ -152,7 +152,7 @@ export function AssignedOrdersPage() {
                             Cooking
                           </span>
                         ) : (
-                          <span className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100 flex items-center gap-1">
+                          <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 flex items-center gap-1">
                             <Utensils className="w-3.5 h-3.5" />
                             In Hand
                           </span>

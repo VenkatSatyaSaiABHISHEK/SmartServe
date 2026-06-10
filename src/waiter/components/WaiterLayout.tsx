@@ -8,10 +8,18 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function WaiterLayout() {
-  const { waiter, notifications, toggleOnlineStatus, logout } = useWaiterStore();
+  const { waiter, notifications, toggleOnlineStatus, logout, listenToWaiters } = useWaiterStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeToast, setActiveToast] = useState<string | null>(null);
+
+  // Subscribe to real-time waiter changes in Firestore
+  useEffect(() => {
+    const unsubscribe = listenToWaiters();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [listenToWaiters]);
 
   // Redirect to login if not logged in
   useEffect(() => {
@@ -58,7 +66,7 @@ export function WaiterLayout() {
             exit={{ y: -50, opacity: 0, scale: 0.9 }}
             className="fixed top-4 left-4 right-4 z-50 bg-slate-900 text-white p-4 rounded-[20px] shadow-xl flex items-start gap-3 border border-slate-700/50 backdrop-blur-md max-w-sm mx-auto"
           >
-            <div className="bg-purple-500/20 p-2 rounded-xl text-purple-400">
+            <div className="bg-blue-500/20 p-2 rounded-xl text-blue-400">
               <Bell className="w-5 h-5 animate-bounce" />
             </div>
             <div className="flex-1">
@@ -137,13 +145,13 @@ export function WaiterLayout() {
                 <motion.div 
                   animate={{ scale: isSelected ? 1.1 : 1 }}
                   className={`p-1.5 rounded-xl transition-colors ${
-                    isSelected ? 'text-[#7c3aed] bg-[#f5f3ff]' : 'text-slate-400 hover:text-slate-600'
+                    isSelected ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   <Icon className="w-5 h-5 stroke-[2.2]" />
                 </motion.div>
                 <span className={`text-[10px] font-bold tracking-wide transition-colors ${
-                  isSelected ? 'text-[#7c3aed]' : 'text-slate-400'
+                  isSelected ? 'text-blue-600' : 'text-slate-400'
                 }`}>
                   {tab.label}
                 </span>
@@ -152,7 +160,7 @@ export function WaiterLayout() {
                 {isSelected && (
                   <motion.div 
                     layoutId="activeTabIndicator"
-                    className="absolute bottom-[-6px] w-6 h-[3px] bg-[#7c3aed] rounded-full"
+                    className="absolute bottom-[-6px] w-6 h-[3px] bg-blue-600 rounded-full"
                     transition={{ type: "spring", stiffness: 350, damping: 25 }}
                   />
                 )}

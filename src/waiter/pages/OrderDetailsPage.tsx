@@ -20,7 +20,7 @@ export function OrderDetailsPage() {
         <h1 className="text-xl font-bold text-slate-800">Order Not Found</h1>
         <button 
           onClick={() => navigate('/waiter/assigned')}
-          className="mt-4 px-6 py-3 bg-[#7c3aed] text-white rounded-full font-bold"
+          className="mt-4 px-6 py-3 bg-[#2563eb] text-white rounded-full font-bold"
         >
           Back to Assigned
         </button>
@@ -77,7 +77,7 @@ export function OrderDetailsPage() {
         {/* Status Box */}
         <div className="bg-white p-5 rounded-[28px] border border-[#f1f5f9] shadow-sm flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-50 text-[#7c3aed] rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
               <ChefHat className="w-5 h-5" />
             </div>
             <div>
@@ -86,7 +86,7 @@ export function OrderDetailsPage() {
             </div>
           </div>
           <div className="flex items-center gap-1 text-[#64748b] text-[13px] font-semibold bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-full">
-            <Clock className="w-4 h-4 text-purple-500" />
+            <Clock className="w-4 h-4 text-blue-500" />
             Ordered {order.timeOrdered}
           </div>
         </div>
@@ -94,7 +94,7 @@ export function OrderDetailsPage() {
         {/* Kitchen Items Checklist */}
         <div className="bg-white p-5 rounded-[28px] border border-[#f1f5f9] shadow-sm">
           <h3 className="font-bold text-[#0f172a] text-[15px] font-poppins mb-4 flex items-center gap-2">
-            <FileText className="w-4.5 h-4.5 text-[#7c3aed]" />
+            <FileText className="w-4.5 h-4.5 text-blue-600" />
             Items Checklist
           </h3>
           <p className="text-[12px] text-slate-400 mb-3.5">Verify each item before picking up from kitchen or delivering to table:</p>
@@ -108,14 +108,14 @@ export function OrderDetailsPage() {
                   onClick={() => toggleCheck(idx)}
                   className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                     isChecked 
-                      ? 'bg-purple-50/10 border-purple-200 text-[#0f172a]' 
+                      ? 'bg-blue-50/10 border-blue-200 text-[#0f172a]' 
                       : 'bg-white border-[#f1f5f9] hover:bg-slate-50 text-[#1e293b]'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-[#7c3aed]">
+                    <span className="text-blue-600">
                       {isChecked ? (
-                        <CheckSquare className="w-5 h-5 fill-purple-100 text-[#7c3aed]" />
+                        <CheckSquare className="w-5 h-5 fill-blue-100 text-blue-600" />
                       ) : (
                         <Square className="w-5 h-5 text-slate-300" />
                       )}
@@ -145,7 +145,7 @@ export function OrderDetailsPage() {
         {/* Cost Summary Box */}
         <div className="bg-white p-5 rounded-[28px] border border-[#f1f5f9] shadow-sm">
           <h3 className="font-bold text-[#0f172a] text-[15px] font-poppins mb-4 flex items-center gap-2">
-            <CreditCard className="w-4.5 h-4.5 text-[#7c3aed]" />
+            <CreditCard className="w-4.5 h-4.5 text-blue-600" />
             Billing Breakdown
           </h3>
           <div className="flex flex-col gap-2.5 text-[13px] text-[#64748b]">
@@ -169,7 +169,7 @@ export function OrderDetailsPage() {
         {order.status !== 'Delivered' && order.status !== 'Preparing' && (
           <button 
             onClick={handleAction}
-            className="w-full py-4.5 rounded-[22px] font-black text-white text-sm uppercase tracking-wider bg-gradient-to-r from-[#7c3aed] to-[#6366f1] shadow-lg shadow-purple-500/20 active:scale-95 transition-all mt-4 cursor-pointer flex items-center justify-center gap-2"
+            className="w-full py-4.5 rounded-[22px] font-black text-white text-sm uppercase tracking-wider bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/20 active:scale-95 transition-all mt-4 cursor-pointer flex items-center justify-center gap-2"
           >
             {order.status === 'Ready' ? 'Collect from Kitchen' : 'Mark Delivered to Table'}
           </button>

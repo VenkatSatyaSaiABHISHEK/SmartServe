@@ -7,7 +7,7 @@ import {
 import { motion } from 'framer-motion';
 
 export function DashboardPage() {
-  const { menuItems, customers, reservations, notifications } = useAdminStore();
+  const { menuItems, reservations, notifications } = useAdminStore();
   const chefOrders = useChefStore(state => state.orders);
 
   // Financial Metrics calculations
@@ -44,7 +44,7 @@ export function DashboardPage() {
         {[
           { title: 'Total Revenue', value: `$${totalSalesVal.toLocaleString()}`, change: '+14% from last month', icon: DollarSign, color: 'text-purple-600', bg: 'bg-purple-50' },
           { title: 'Sales Today', value: `$${salesToday.toLocaleString()}`, change: '+4.2% since morning', icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { title: 'Active CRM Clients', value: customers.length, change: `${customers.filter(c => c.visitCount > 25).length} VIP regulars`, icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { title: 'Orders Cooked Today', value: completedOrders, change: `${chefOrders.filter(o => o.status !== 'Completed').length} orders in progress`, icon: Utensils, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { title: 'Pending Bookings', value: reservations.filter(r => r.status === 'Pending').length, change: 'For tomorrow/weekend', icon: Calendar, color: 'text-amber-600', bg: 'bg-amber-50' }
         ].map((item, idx) => {
           const Icon = item.icon;
@@ -128,6 +128,95 @@ export function DashboardPage() {
           </div>
         </div>
 
+      </div>
+
+      {/* Live Order Workflow Progress Board */}
+      <div className="bg-white border border-[#f1f5f9] rounded-[28px] p-6.5 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="font-extrabold text-[15.5px] text-[#0f172a] font-poppins tracking-tight">KITCHEN WORKFLOW PIPELINE</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Real-time status tracking of cooking cycles and delivery queues.</p>
+          </div>
+          
+          {/* Progress Bar completed vs total */}
+          <div className="flex items-center gap-3 bg-slate-50 border border-slate-100/60 p-2.5 rounded-xl self-start">
+            <span className="text-[10.5px] font-black text-slate-500 uppercase tracking-wider">Overall Dispatch:</span>
+            <div className="w-32 bg-slate-200 h-2 rounded-full overflow-hidden">
+              <div 
+                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${chefOrders.length > 0 ? (chefOrders.filter(o => o.status === 'Completed').length / chefOrders.length) * 100 : 0}%` }}
+              />
+            </div>
+            <span className="text-[11px] font-black text-slate-700">
+              {chefOrders.filter(o => o.status === 'Completed').length}/{chefOrders.length} Done
+            </span>
+          </div>
+        </div>
+
+        {/* 4 Pipeline Columns */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {(['New', 'Preparing', 'Ready', 'Completed'] as const).map((stage) => {
+            const stageOrders = chefOrders.filter(o => o.status === stage);
+            
+            const styles = {
+              'New': { headerBg: 'bg-blue-50 text-blue-600', dot: 'bg-blue-500', label: 'Incoming Tickets' },
+              'Preparing': { headerBg: 'bg-amber-50 text-amber-600', dot: 'bg-amber-500', label: 'Chef Stirring' },
+              'Ready': { headerBg: 'bg-green-50 text-green-600', dot: 'bg-green-500', label: 'Pass Counter' },
+              'Completed': { headerBg: 'bg-slate-100 text-slate-600', dot: 'bg-slate-500', label: 'Dispatched' }
+            }[stage];
+
+            return (
+              <div key={stage} className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100/80 flex flex-col min-h-[200px]">
+                {/* Column Header */}
+                <div className={`flex items-center justify-between p-2 rounded-xl mb-3.5 ${styles.headerBg} font-black text-[10.5px] uppercase tracking-wider`}>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${styles.dot}`} />
+                    <span>{stage}</span>
+                  </div>
+                  <span className="bg-white px-2 py-0.5 rounded-md text-[9px] shadow-sm">{stageOrders.length}</span>
+                </div>
+
+                <div className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest text-center mb-2.5">{styles.label}</div>
+
+                {/* Orders List */}
+                <div className="flex flex-col gap-2.5 flex-1 overflow-y-auto max-h-[220px] scrollbar-none">
+                  {stageOrders.length === 0 ? (
+                    <div className="text-center py-6 text-slate-300 text-[10px] font-bold border border-dashed border-slate-200/50 rounded-xl flex-1 flex items-center justify-center">
+                      Empty
+                    </div>
+                  ) : (
+                    stageOrders.map(order => (
+                      <div key={order.id} className="bg-white border border-slate-100 shadow-sm p-3 rounded-xl space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="font-black text-[#0f172a] text-xs">#{order.id}</span>
+                          <span className="bg-slate-100 text-slate-600 border border-slate-100/60 text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
+                            T {order.tableNumber}
+                          </span>
+                        </div>
+
+                        {/* Dishes list */}
+                        <div className="space-y-0.5">
+                          {order.items.map((item, idx) => (
+                            <div key={idx} className="flex justify-between text-[10px] font-semibold text-slate-600">
+                              <span className="truncate max-w-[120px]">{item.name}</span>
+                              <span className="text-slate-400">x{item.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Order Stats */}
+                        <div className="flex items-center justify-between border-t border-slate-50 pt-2 text-[9px] font-bold text-slate-400 uppercase">
+                          <span>Prep: {order.prepTimeMins}m</span>
+                          <span>{order.timeReceived}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Recent reservations grid map preview */}

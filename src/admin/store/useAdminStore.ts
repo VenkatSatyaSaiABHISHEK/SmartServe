@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import type { AdminCustomer, Reservation, CCTVCamera, AdminNotification } from '../types';
+import type { Reservation, CCTVCamera, AdminNotification } from '../types';
+import { db } from '../../firebase/config';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import type { Waiter } from '../../waiter/types';
+import type { Chef } from '../../chef/types';
 
 interface MenuItem {
   id: string;
@@ -9,17 +13,19 @@ interface MenuItem {
   category: string;
   type: 'veg' | 'non-veg';
   available: boolean;
+  prepTime: number; // preparation time in minutes
 }
 
 interface AdminState {
   isAdminLoggedIn: boolean;
   menuItems: MenuItem[];
-  customers: AdminCustomer[];
   reservations: Reservation[];
   cameras: CCTVCamera[];
   notifications: AdminNotification[];
   taxRate: number;
   currency: string;
+  waiters: Waiter[];
+  chefs: Chef[];
   
   // Auth actions
   login: () => void;
@@ -29,6 +35,15 @@ interface AdminState {
   addMenuItem: (item: Omit<MenuItem, 'id' | 'available'>) => void;
   updateMenuItem: (id: string, updatedFields: Partial<MenuItem>) => void;
   deleteMenuItem: (id: string) => void;
+  listenToMenuItems: () => (() => void);
+
+  // Staff actions
+  listenToWaiters: () => (() => void);
+  listenToChefs: () => (() => void);
+  addWaiter: (waiter: Omit<Waiter, 'id' | 'totalDeliveries' | 'todayTips' | 'rating' | 'status'> & { pin: string }) => void;
+  addChef: (chef: Omit<Chef, 'id' | 'ordersPrepared' | 'rating' | 'activeLoad'> & { pin: string }) => void;
+  updateWaiterStatus: (id: string, status: Waiter['status']) => void;
+  updateChefSection: (id: string, section: string) => void;
   
   // Reservation actions
   addReservation: (reservation: Omit<Reservation, 'id' | 'status'>) => void;
@@ -43,20 +58,12 @@ interface AdminState {
 }
 
 const INITIAL_FOODS: MenuItem[] = [
-  { id: '1', name: 'Truffle Mushroom Risotto', price: 24.99, image: 'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?q=80&w=400&auto=format&fit=crop', category: 'Main Course', type: 'veg', available: true },
-  { id: '2', name: 'Wagyu Beef Burger', price: 29.50, image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=400&auto=format&fit=crop', category: 'Main Course', type: 'non-veg', available: true },
-  { id: '3', name: 'Salmon Tartare', price: 18.00, image: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?q=80&w=400&auto=format&fit=crop', category: 'Starters', type: 'non-veg', available: true },
-  { id: '4', name: 'Hyderabadi Dum Biryani', price: 22.00, image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?q=80&w=400&auto=format&fit=crop', category: 'Biryani', type: 'non-veg', available: true },
-  { id: '5', name: 'Matcha Lava Cake', price: 12.99, image: 'https://images.unsplash.com/photo-1541783245831-57d6fb0926d3?q=80&w=400&auto=format&fit=crop', category: 'Desserts', type: 'veg', available: true },
-  { id: '6', name: 'Artisan Burrata', price: 16.50, image: 'https://images.unsplash.com/photo-1608897013039-887f21d8c804?q=80&w=400&auto=format&fit=crop', category: 'Starters', type: 'veg', available: true },
-];
-
-const INITIAL_CUSTOMERS: AdminCustomer[] = [
-  { id: 'CUST-301', name: 'Alexander Wright', email: 'alex@wright.co', phone: '+1 555-0192', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=120&auto=format&fit=crop', visitCount: 42, totalSpent: 1845.50, avgRating: 4.9, dietPreference: 'All', lastVisitDate: '2026-06-09' },
-  { id: 'CUST-302', name: 'Meera Patel', email: 'meera.patel@gmail.com', phone: '+1 555-0143', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=120&auto=format&fit=crop', visitCount: 28, totalSpent: 924.00, avgRating: 4.8, dietPreference: 'Veg', lastVisitDate: '2026-06-08' },
-  { id: 'CUST-303', name: 'Marcus Chen', email: 'marcus@chencorp.org', phone: '+1 555-0129', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=120&auto=format&fit=crop', visitCount: 15, totalSpent: 512.20, avgRating: 4.6, dietPreference: 'Non-Veg', lastVisitDate: '2026-06-07' },
-  { id: 'CUST-304', name: 'Sophia Loren', email: 'sophia@loren.it', phone: '+1 555-0111', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=120&auto=format&fit=crop', visitCount: 31, totalSpent: 1240.80, avgRating: 5.0, dietPreference: 'Veg', lastVisitDate: '2026-06-05' },
-  { id: 'CUST-305', name: 'Devon Carter', email: 'devon@carter.dev', phone: '+1 555-0178', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=120&auto=format&fit=crop', visitCount: 9, totalSpent: 288.50, avgRating: 4.2, dietPreference: 'All', lastVisitDate: '2026-06-02' }
+  { id: '1', name: 'Truffle Mushroom Risotto', price: 24.99, image: 'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?q=80&w=400&auto=format&fit=crop', category: 'Main Course', type: 'veg', available: true, prepTime: 15 },
+  { id: '2', name: 'Wagyu Beef Burger', price: 29.50, image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=400&auto=format&fit=crop', category: 'Main Course', type: 'non-veg', available: true, prepTime: 10 },
+  { id: '3', name: 'Salmon Tartare', price: 18.00, image: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?q=80&w=400&auto=format&fit=crop', category: 'Starters', type: 'non-veg', available: true, prepTime: 8 },
+  { id: '4', name: 'Hyderabadi Dum Biryani', price: 22.00, image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?q=80&w=400&auto=format&fit=crop', category: 'Biryani', type: 'non-veg', available: true, prepTime: 20 },
+  { id: '5', name: 'Matcha Lava Cake', price: 12.99, image: 'https://images.unsplash.com/photo-1541783245831-57d6fb0926d3?q=80&w=400&auto=format&fit=crop', category: 'Desserts', type: 'veg', available: true, prepTime: 12 },
+  { id: '6', name: 'Artisan Burrata', price: 16.50, image: 'https://images.unsplash.com/photo-1608897013039-887f21d8c804?q=80&w=400&auto=format&fit=crop', category: 'Starters', type: 'veg', available: true, prepTime: 6 },
 ];
 
 const INITIAL_RESERVATIONS: Reservation[] = [
@@ -81,34 +88,181 @@ const INITIAL_NOTIFICATIONS: AdminNotification[] = [
 
 export const useAdminStore = create<AdminState>((set, get) => ({
   isAdminLoggedIn: false,
-  menuItems: INITIAL_FOODS,
-  customers: INITIAL_CUSTOMERS,
+  menuItems: [],
   reservations: INITIAL_RESERVATIONS,
   cameras: INITIAL_CAMERAS,
   notifications: INITIAL_NOTIFICATIONS,
   taxRate: 5, // 5% GST
   currency: '$',
+  waiters: [],
+  chefs: [],
 
   login: () => set({ isAdminLoggedIn: true }),
   logout: () => set({ isAdminLoggedIn: false }),
 
-  addMenuItem: (item) => set((state) => {
-    const nextId = (Math.max(...state.menuItems.map(m => parseInt(m.id))) + 1).toString();
+  addMenuItem: async (item) => {
+    const menuItems = get().menuItems;
+    const maxId = menuItems.length > 0 ? Math.max(...menuItems.map(m => parseInt(m.id) || 0)) : 0;
+    const nextId = (maxId + 1).toString();
     const newItem: MenuItem = {
       ...item,
       id: nextId,
       available: true
     };
-    return { menuItems: [...state.menuItems, newItem] };
-  }),
+    try {
+      await setDoc(doc(db, 'menuItems', nextId), newItem);
+    } catch (error) {
+      console.error("Error adding menu item:", error);
+    }
+  },
 
-  updateMenuItem: (id, updatedFields) => set((state) => ({
-    menuItems: state.menuItems.map(m => m.id === id ? { ...m, ...updatedFields } : m)
-  })),
+  updateMenuItem: async (id, updatedFields) => {
+    try {
+      await updateDoc(doc(db, 'menuItems', id), updatedFields);
+    } catch (error) {
+      console.error("Error updating menu item:", error);
+    }
+  },
 
-  deleteMenuItem: (id) => set((state) => ({
-    menuItems: state.menuItems.filter(m => m.id !== id)
-  })),
+  deleteMenuItem: async (id) => {
+    try {
+      await deleteDoc(doc(db, 'menuItems', id));
+    } catch (error) {
+      console.error("Error deleting menu item:", error);
+    }
+  },
+
+  listenToMenuItems: () => {
+    const menuCol = collection(db, 'menuItems');
+    let isInitialFetch = true;
+    return onSnapshot(menuCol, async (snapshot) => {
+      if (snapshot.empty && isInitialFetch) {
+        isInitialFetch = false;
+        for (const food of INITIAL_FOODS) {
+          await setDoc(doc(db, 'menuItems', food.id), food);
+        }
+      } else {
+        const items: MenuItem[] = [];
+        snapshot.forEach((doc) => {
+          items.push(doc.data() as MenuItem);
+        });
+        items.sort((a, b) => (parseInt(a.id) || 0) - (parseInt(b.id) || 0));
+        set({ menuItems: items });
+      }
+    }, (error) => {
+      console.error("Error in onSnapshot listener for menu items:", error);
+    });
+  },
+
+  listenToWaiters: () => {
+    const waitersCol = collection(db, 'waiters');
+    let isInitialFetch = true;
+    return onSnapshot(waitersCol, async (snapshot) => {
+      if (snapshot.empty && isInitialFetch) {
+        isInitialFetch = false;
+        const INITIAL_WAITERS: Waiter[] = [
+          { id: 'W-01', name: 'John Doe', email: 'john.doe@restaurant.com', pin: '1234', status: 'Active', onlineStatus: true, rating: 4.9, totalDeliveries: 24, todayTips: 42.50, avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=120&auto=format&fit=crop' },
+          { id: 'W-02', name: 'Sarah Connor', email: 'sarah.c@restaurant.com', pin: '4321', status: 'On Break', onlineStatus: false, rating: 4.8, totalDeliveries: 18, todayTips: 30.00, avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=120&auto=format&fit=crop' },
+          { id: 'W-03', name: 'Liam Neeson', email: 'liam.n@restaurant.com', pin: '1111', status: 'Active', onlineStatus: true, rating: 4.7, totalDeliveries: 21, todayTips: 35.80, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=120&auto=format&fit=crop' },
+          { id: 'W-04', name: 'Emma Watson', email: 'emma.w@restaurant.com', pin: '2222', status: 'Offline', onlineStatus: false, rating: 5.0, totalDeliveries: 32, todayTips: 65.00, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=120&auto=format&fit=crop' }
+        ];
+        for (const waiter of INITIAL_WAITERS) {
+          await setDoc(doc(db, 'waiters', waiter.id), waiter);
+        }
+      } else {
+        const items: Waiter[] = [];
+        snapshot.forEach((doc) => {
+          items.push(doc.data() as Waiter);
+        });
+        items.sort((a, b) => a.id.localeCompare(b.id));
+        set({ waiters: items });
+      }
+    }, (error) => {
+      console.error("Error in onSnapshot listener for waiters:", error);
+    });
+  },
+
+  listenToChefs: () => {
+    const chefsCol = collection(db, 'chefs');
+    let isInitialFetch = true;
+    return onSnapshot(chefsCol, async (snapshot) => {
+      if (snapshot.empty && isInitialFetch) {
+        isInitialFetch = false;
+        const INITIAL_CHEFS: Chef[] = [
+          { id: 'C1', name: 'Chef Ramsay', section: 'Grill & Entrées', pin: '1234', rating: 4.9, ordersPrepared: 242, activeLoad: 0, shiftWindow: '04:00 PM - Midnight', avatar: 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?q=80&w=120&auto=format&fit=crop' },
+          { id: 'C2', name: 'Chef Bourdain', section: 'Sauté & Pastry', pin: '5555', rating: 4.8, ordersPrepared: 198, activeLoad: 0, shiftWindow: '04:00 PM - Midnight', avatar: 'https://images.unsplash.com/photo-1583394838336-acd977736f90?q=80&w=120&auto=format&fit=crop' },
+          { id: 'C3', name: 'Chef Chang', section: 'Appetizers & Salads', pin: '9999', rating: 4.7, ordersPrepared: 156, activeLoad: 0, shiftWindow: '06:00 PM - 02:00 AM', avatar: 'https://images.unsplash.com/photo-1595273670150-db0a3e390294?q=80&w=120&auto=format&fit=crop' }
+        ];
+        for (const chef of INITIAL_CHEFS) {
+          await setDoc(doc(db, 'chefs', chef.id), chef);
+        }
+      } else {
+        const items: Chef[] = [];
+        snapshot.forEach((doc) => {
+          items.push(doc.data() as Chef);
+        });
+        items.sort((a, b) => a.id.localeCompare(b.id));
+        set({ chefs: items });
+      }
+    }, (error) => {
+      console.error("Error in onSnapshot listener for chefs:", error);
+    });
+  },
+
+  addWaiter: async (waiter) => {
+    const waiters = get().waiters;
+    const nextId = `W-0${waiters.length + 1}`;
+    const newWaiter: Waiter = {
+      ...waiter,
+      id: nextId,
+      status: 'Offline',
+      onlineStatus: false,
+      rating: 5.0,
+      totalDeliveries: 0,
+      todayTips: 0.00
+    };
+    try {
+      await setDoc(doc(db, 'waiters', nextId), newWaiter);
+    } catch (error) {
+      console.error("Error adding waiter:", error);
+    }
+  },
+
+  addChef: async (chef) => {
+    const chefs = get().chefs;
+    const nextId = `C${chefs.length + 1}`;
+    const newChef: Chef = {
+      ...chef,
+      id: nextId,
+      rating: 5.0,
+      ordersPrepared: 0,
+      activeLoad: 0
+    };
+    try {
+      await setDoc(doc(db, 'chefs', nextId), newChef);
+    } catch (error) {
+      console.error("Error adding chef:", error);
+    }
+  },
+
+  updateWaiterStatus: async (id, status) => {
+    try {
+      await updateDoc(doc(db, 'waiters', id), { 
+        status, 
+        onlineStatus: status === 'Active' 
+      });
+    } catch (error) {
+      console.error("Error updating waiter status:", error);
+    }
+  },
+
+  updateChefSection: async (id, section) => {
+    try {
+      await updateDoc(doc(db, 'chefs', id), { section });
+    } catch (error) {
+      console.error("Error updating chef section:", error);
+    }
+  },
 
   addReservation: (res) => set((state) => {
     const nextId = `RES-${Math.floor(Math.random() * 900) + 100}`;

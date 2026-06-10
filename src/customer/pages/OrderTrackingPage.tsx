@@ -1,27 +1,107 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, ChefHat, Bike, MapPin, Bell, User } from 'lucide-react';
 import { useOrderStore } from '../store/useOrderStore';
+import { db } from '../../firebase/config';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 const TIMELINE = [
-  { id: 'Confirmed', title: 'Order Confirmed', icon: Check, time: '12:30 PM' },
-  { id: 'Preparing', title: 'Preparing', icon: ChefHat, time: '12:35 PM' },
-  { id: 'On The Way', title: 'On The Way', icon: Bike, time: '--:--' },
-  { id: 'Delivered', title: 'Delivered', icon: MapPin, time: '--:--' },
+  { id: 'Confirmed', title: 'Order Confirmed', icon: Check, time: 'Just now' },
+  { id: 'Preparing', title: 'Kitchen Preparing', icon: ChefHat, time: 'Cooking' },
+  { id: 'On The Way', title: 'On The Way', icon: Bike, time: 'Delivery' },
+  { id: 'Delivered', title: 'Delivered & Enjoy', icon: MapPin, time: 'Arrived' },
 ];
 
 export function OrderTrackingPage() {
   const status = useOrderStore(state => state.status);
   const estimatedTimeMins = useOrderStore(state => state.estimatedTimeMins);
   const setStatus = useOrderStore(state => state.setStatus);
+  const orderId = useOrderStore(state => state.orderId);
 
-  // Simulate order progress
+  const [timeLeft, setTimeLeft] = useState(estimatedTimeMins * 60);
+
+  // 1. Firestore Real-Time tracking effect
   useEffect(() => {
-    if (status === 'Confirmed') {
-      const timer = setTimeout(() => setStatus('Preparing'), 3000);
-      return () => clearTimeout(timer);
+    if (!orderId) return;
+
+    const unsub = onSnapshot(doc(db, 'orders', orderId), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        
+        let mappedStatus: any = 'Confirmed';
+        if (data.status === 'Preparing') {
+          mappedStatus = 'Preparing';
+        } else if (data.status === 'Ready') {
+          mappedStatus = 'On The Way';
+        } else if (data.status === 'Completed' || data.status === 'Delivered') {
+          mappedStatus = 'Delivered';
+        }
+        
+        setStatus(mappedStatus);
+
+        if (data.completedAt) {
+          const secsLeft = Math.max(0, Math.round((data.completedAt - Date.now()) / 1000));
+          setTimeLeft(secsLeft);
+        } else {
+          setTimeLeft(data.prepTimeMins * 60);
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [orderId, setStatus]);
+
+  // Sync state if estimated time changes (fallback)
+  useEffect(() => {
+    if (orderId) return;
+    setTimeLeft(estimatedTimeMins * 60);
+  }, [estimatedTimeMins, orderId]);
+
+  // Countdown timer effect (fallback)
+  useEffect(() => {
+    if (orderId) {
+      // If we are tracking via Firestore, let the ticking happen via now state,
+      // or we can let this timer decrement timeLeft local state between firestore events to keep it smooth!
+      if (timeLeft <= 0) return;
+      const timer = setInterval(() => {
+        setTimeLeft(prev => Math.max(0, prev - 1));
+      }, 1000);
+      return () => clearInterval(timer);
     }
-  }, [status, setStatus]);
+
+    if (timeLeft <= 0) {
+      setStatus('Delivered');
+      return;
+    }
+    const timer = setInterval(() => {
+      setTimeLeft(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, setStatus, orderId]);
+
+  const totalSeconds = estimatedTimeMins * 60;
+  const elapsedPercent = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
+
+  // Dynamic status transition (fallback)
+  useEffect(() => {
+    if (orderId) return;
+
+    if (elapsedPercent >= 95) {
+      setStatus('Delivered');
+    } else if (elapsedPercent >= 75) {
+      setStatus('On The Way');
+    } else if (elapsedPercent >= 5) {
+      setStatus('Preparing');
+    } else {
+      setStatus('Confirmed');
+    }
+  }, [elapsedPercent, setStatus, orderId]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const currentStepIndex = TIMELINE.findIndex(step => step.id === status);
   const progress = (currentStepIndex / (TIMELINE.length - 1)) * 100;
@@ -54,7 +134,7 @@ export function OrderTrackingPage() {
               strokeWidth="8"
               strokeLinecap="round"
               initial={{ strokeDasharray: "553", strokeDashoffset: "553" }}
-              animate={{ strokeDashoffset: 553 - (553 * progress) / 100 }}
+              animate={{ strokeDashoffset: 553 - (553 * elapsedPercent) / 100 }}
               transition={{ duration: 1, ease: "easeInOut" }}
             />
             <defs>
@@ -65,11 +145,16 @@ export function OrderTrackingPage() {
             </defs>
           </svg>
           <div className="flex flex-col items-center">
-            <span className="text-4xl font-bold text-slate-800">{estimatedTimeMins}</span>
-            <span className="text-sm font-medium text-slate-500">mins</span>
+            <span className="text-3xl font-black text-slate-800 font-poppins">{formatTime(timeLeft)}</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 mt-0.5">{status}</span>
           </div>
         </div>
-        <p className="mt-6 text-xl font-bold text-slate-800">Being Prepared 🍽️</p>
+        <p className="mt-6 text-lg font-extrabold text-slate-800 font-poppins">
+          {status === 'Delivered' ? 'Enjoy your food! 🍽️' :
+           status === 'On The Way' ? 'Waiter is serving your food! 🏃‍♂️' :
+           status === 'Preparing' ? 'Chef is cooking your dish! 🍳' :
+           'Order Confirmed & Placed! 📝'}
+        </p>
       </div>
 
       {/* Timeline */}

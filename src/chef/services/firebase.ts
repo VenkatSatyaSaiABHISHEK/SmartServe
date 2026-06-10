@@ -20,7 +20,7 @@ export const startChefSimulation = () => {
     // Select 1 to 3 random items
     const itemCount = Math.floor(Math.random() * 3) + 1;
     const itemsSelected: { name: string; quantity: number }[] = [];
-    let maxPrepTime = 5;
+    let totalPrepTime = 0;
 
     for (let i = 0; i < itemCount; i++) {
       const randomItem = MOCK_ITEMS_POOL[Math.floor(Math.random() * MOCK_ITEMS_POOL.length)];
@@ -32,15 +32,13 @@ export const startChefSimulation = () => {
         itemsSelected.push({ name: randomItem.name, quantity: 1 });
       }
       
-      if (randomItem.prepTime > maxPrepTime) {
-        maxPrepTime = randomItem.prepTime;
-      }
+      totalPrepTime += randomItem.prepTime;
     }
 
     const randomTableNum = Math.floor(Math.random() * 12) + 1;
 
     // Trigger adding a new order (which automatically runs load-balancing)
-    store.addNewOrder(itemsSelected, randomTableNum, maxPrepTime);
+    store.addNewOrder(itemsSelected, randomTableNum, totalPrepTime);
   }, 25000); // 25 seconds interval
 };
 

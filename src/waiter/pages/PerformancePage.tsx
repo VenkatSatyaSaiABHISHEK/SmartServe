@@ -43,7 +43,7 @@ export function PerformancePage() {
         <div className="flex justify-between items-center">
           <div>
             <h3 className="font-extrabold text-[#0f172a] text-[15px] font-poppins flex items-center gap-1.5">
-              <TrendingUp className="w-4.5 h-4.5 text-[#7c3aed]" />
+              <TrendingUp className="w-4.5 h-4.5 text-blue-600" />
               Weekly Tips Trend
             </h3>
             <p className="text-[12px] text-slate-400">Monday, June 08 - Sunday, June 14</p>
@@ -72,7 +72,7 @@ export function PerformancePage() {
             {/* Smooth Line Path */}
             <motion.polyline
               fill="none"
-              stroke="#7c3aed"
+              stroke="#2563eb"
               strokeWidth="3"
               strokeLinecap="round"
               points={points}
@@ -91,14 +91,14 @@ export function PerformancePage() {
                     cx={x}
                     cy={y}
                     r="4"
-                    fill="#7c3aed"
+                    fill="#2563eb"
                     className="cursor-pointer"
                   />
                   <circle
                     cx={x}
                     cy={y}
                     r="8"
-                    fill="#7c3aed"
+                    fill="#2563eb"
                     fillOpacity="0.15"
                     className="animate-ping"
                   />
@@ -119,7 +119,7 @@ export function PerformancePage() {
       {/* Analytics Cards Grid */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white p-4.5 rounded-[24px] border border-[#f1f5f9] shadow-sm flex items-start gap-3">
-          <div className="w-9 h-9 bg-purple-50 text-[#7c3aed] rounded-xl flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
             <Clock className="w-5 h-5" />
           </div>
           <div>
@@ -149,8 +149,8 @@ export function PerformancePage() {
         </h3>
 
         <div className="flex flex-col gap-3">
-          <div className="flex gap-3 items-start p-3 bg-purple-50/20 border border-purple-50/60 rounded-2xl">
-            <div className="p-2 bg-purple-50 text-[#7c3aed] rounded-xl shrink-0 text-sm">🏆</div>
+          <div className="flex gap-3 items-start p-3 bg-indigo-50/20 border border-indigo-50/60 rounded-2xl">
+            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl shrink-0 text-sm">🏆</div>
             <div>
               <h4 className="font-extrabold text-[#1e293b] text-[13px] leading-tight">Top Performer Badge</h4>
               <p className="text-[11.5px] text-slate-500 mt-1 leading-relaxed">

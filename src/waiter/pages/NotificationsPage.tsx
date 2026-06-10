@@ -11,8 +11,8 @@ export function NotificationsPage() {
       case 'table_ready':
         return {
           icon: ChefHat,
-          color: 'text-purple-600 bg-purple-50 border-purple-100',
-          badge: 'bg-purple-100/60'
+          color: 'text-blue-600 bg-blue-50 border-blue-100',
+          badge: 'bg-blue-100/60'
         };
       case 'billing_request':
         return {
@@ -43,7 +43,7 @@ export function NotificationsPage() {
         {unreadCount > 0 && (
           <button 
             onClick={markAllNotificationsRead}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-50 text-[#7c3aed] border border-purple-100 hover:bg-purple-100/50 rounded-full font-bold text-xs uppercase tracking-wide cursor-pointer transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100/50 rounded-full font-bold text-xs uppercase tracking-wide cursor-pointer transition-colors"
           >
             <CheckCheck className="w-4 h-4" />
             Mark All Read
@@ -73,7 +73,7 @@ export function NotificationsPage() {
                 className={`bg-white border p-4.5 rounded-[24px] shadow-sm flex items-start gap-3.5 transition-all cursor-pointer relative ${
                   noti.read 
                     ? 'border-[#f1f5f9] opacity-65 hover:bg-slate-50/30' 
-                    : 'border-purple-100 bg-purple-50/[0.04] shadow-[0_4px_16px_rgba(124,58,237,0.015)] hover:border-purple-200'
+                    : 'border-blue-100 bg-blue-50/[0.04] shadow-[0_4px_16px_rgba(37,99,235,0.015)] hover:border-blue-200'
                 }`}
               >
                 {/* Icon badge */}
@@ -93,7 +93,7 @@ export function NotificationsPage() {
 
                 {/* Unread dot indicator */}
                 {!noti.read && (
-                  <span className="absolute top-4.5 right-4.5 w-2 h-2 rounded-full bg-[#7c3aed]" />
+                  <span className="absolute top-4.5 right-4.5 w-2 h-2 rounded-full bg-blue-600" />
                 )}
               </div>
             );

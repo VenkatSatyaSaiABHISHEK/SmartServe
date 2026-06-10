@@ -149,7 +149,9 @@ export function DashboardPage() {
                       'New': 'bg-blue-50 text-blue-600 border border-blue-100',
                       'Preparing': 'bg-amber-50 text-amber-600 border border-amber-100',
                       'Ready': 'bg-green-50 text-green-600 border border-green-100',
-                      'Completed': 'bg-slate-50 text-slate-500 border border-slate-100'
+                      'Picked Up': 'bg-purple-50 text-purple-600 border border-purple-100',
+                      'Completed': 'bg-slate-50 text-slate-500 border border-slate-100',
+                      'Delivered': 'bg-slate-50 text-slate-500 border border-slate-105'
                     };
 
                     return (

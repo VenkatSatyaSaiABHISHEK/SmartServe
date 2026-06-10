@@ -35,7 +35,7 @@ import { DashboardPage as AdminDashboardPage } from '../admin/pages/DashboardPag
 import { OrdersPage as AdminOrdersPage } from '../admin/pages/OrdersPage';
 import { MenuManagementPage as AdminMenuManagementPage } from '../admin/pages/MenuManagementPage';
 import { ReservationPage as AdminReservationPage } from '../admin/pages/ReservationPage';
-import { CustomerManagementPage as AdminCustomerManagementPage } from '../admin/pages/CustomerManagementPage';
+import { QrGeneratorPage as AdminQrGeneratorPage } from '../admin/pages/QrGeneratorPage';
 import { WaiterManagementPage as AdminWaiterManagementPage } from '../admin/pages/WaiterManagementPage';
 import { ChefManagementPage as AdminChefManagementPage } from '../admin/pages/ChefManagementPage';
 import { KitchenDisplayPage as AdminKitchenDisplayPage } from '../admin/pages/KitchenDisplayPage';
@@ -187,8 +187,8 @@ export const router = createBrowserRouter([
             element: <AdminReservationPage />,
           },
           {
-            path: "customers",
-            element: <AdminCustomerManagementPage />,
+            path: "qr",
+            element: <AdminQrGeneratorPage />,
           },
           {
             path: "waiters",

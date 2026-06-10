@@ -7,6 +7,8 @@ export interface Waiter {
   rating: number;
   totalDeliveries: number;
   todayTips: number;
+  pin?: string;
+  status?: 'Active' | 'On Break' | 'Offline';
 }
 
 export interface WaiterOrder {
@@ -14,9 +16,11 @@ export interface WaiterOrder {
   tableId: string;
   items: { name: string; quantity: number }[];
   price: number;
-  status: 'Preparing' | 'Ready' | 'Picked Up' | 'Delivered';
+  status: 'New' | 'Preparing' | 'Ready' | 'Picked Up' | 'Completed' | 'Delivered';
   timeOrdered: string;
+  createdAt?: number;
 }
+
 
 export interface ActiveTable {
   id: string;

@@ -22,10 +22,10 @@ export function ActiveTablesPage() {
         };
       case 'ordering':
         return {
-          bg: 'bg-purple-50/50 hover:bg-purple-50',
-          border: 'border-purple-100',
-          text: 'text-purple-700',
-          dot: 'bg-purple-500',
+          bg: 'bg-indigo-50/50 hover:bg-indigo-50',
+          border: 'border-indigo-100',
+          text: 'text-indigo-700',
+          dot: 'bg-indigo-500',
           label: 'Ordering'
         };
       case 'waiting':
@@ -76,7 +76,7 @@ export function ActiveTablesPage() {
           <span>Idle</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+          <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
           <span>Ordering</span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -170,9 +170,9 @@ export function ActiveTablesPage() {
                 </button>
                 <button 
                   onClick={() => handleStatusChange('ordering')}
-                  className="flex items-center gap-3 p-3.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-[20px] font-bold text-xs uppercase tracking-wide text-left cursor-pointer hover:bg-purple-100 transition-colors"
+                  className="flex items-center gap-3 p-3.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-[20px] font-bold text-xs uppercase tracking-wide text-left cursor-pointer hover:bg-indigo-100 transition-colors"
                 >
-                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
                   Ordering (Guest Deciding)
                 </button>
                 <button 

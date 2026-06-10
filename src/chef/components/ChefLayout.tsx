@@ -8,12 +8,20 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function ChefLayout() {
-  const { activeChef, orders, logout } = useChefStore();
+  const { activeChef, orders, logout, listenToChefs } = useChefStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [lastOrderCount, setLastOrderCount] = useState(orders.length);
   const [showNotification, setShowNotification] = useState<string | null>(null);
+
+  // Subscribe to real-time chef changes in Firestore
+  useEffect(() => {
+    const unsubscribe = listenToChefs();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [listenToChefs]);
 
   // Redirect to login if not logged in
   useEffect(() => {
@@ -47,13 +55,11 @@ export function ChefLayout() {
   // Count active orders assigned to the logged-in chef
   const newCount = orders.filter(o => o.assignedChefId === activeChef.id && o.status === 'New').length;
   const preparingCount = orders.filter(o => o.assignedChefId === activeChef.id && o.status === 'Preparing').length;
-  const readyCount = orders.filter(o => o.assignedChefId === activeChef.id && o.status === 'Ready').length;
+  const totalActiveCount = newCount + preparingCount;
 
   const menuItems = [
-    { path: '/chef', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/chef/active', label: 'Incoming', icon: ClipboardList, badge: newCount, badgeColor: 'bg-blue-500' },
-    { path: '/chef/preparing', label: 'Preparing', icon: Flame, badge: preparingCount, badgeColor: 'bg-amber-500' },
-    { path: '/chef/ready', label: 'Ready Awaiting Pickup', icon: CheckCircle2, badge: readyCount, badgeColor: 'bg-green-500' },
+    { path: '/chef', label: 'Workload Dashboard', icon: LayoutDashboard },
+    { path: '/chef/preparing', label: 'Hands-Free Terminal', icon: Flame, badge: totalActiveCount, badgeColor: 'bg-orange-500 animate-pulse' },
     { path: '/chef/history', label: 'Order History', icon: History },
     { path: '/chef/performance', label: 'Analytics', icon: TrendingUp },
     { path: '/chef/profile', label: 'Station Profile', icon: User },

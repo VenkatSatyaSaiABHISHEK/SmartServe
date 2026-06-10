@@ -1,11 +1,30 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ParticleEffect } from '../components/animations/ParticleEffect';
 import { useCartStore } from '../store/useCartStore';
 
 export function WelcomePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const setDietPreference = useCartStore((state) => state.setDietPreference);
+  const setTableNumber = useCartStore((state) => state.setTableNumber);
+  const setGuestsCount = useCartStore((state) => state.setGuestsCount);
+  
+  const tableNum = searchParams.get('table');
+  const guestsCount = searchParams.get('guests');
+
+  useEffect(() => {
+    if (tableNum) {
+      setTableNumber(parseInt(tableNum) || 12);
+    }
+    if (guestsCount) {
+      setGuestsCount(parseInt(guestsCount) || 4);
+    }
+  }, [tableNum, guestsCount, setTableNumber, setGuestsCount]);
+
+  const tableNumber = useCartStore((state) => state.tableNumber);
+  const guests = useCartStore((state) => state.guestsCount);
 
   const handleSelection = (preference: 'all' | 'veg' | 'non-veg') => {
     setDietPreference(preference);
@@ -44,11 +63,11 @@ export function WelcomePage() {
         <div className="flex gap-4 mb-8">
           <div className="bg-white px-5 py-3 rounded-[20px] border border-[#f1f5f9] shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col items-center min-w-[90px]">
             <p className="text-[10px] text-[#94a3b8] font-bold uppercase tracking-wider mb-0.5">Table</p>
-            <p className="text-xl font-black text-[#0f172a]">12</p>
+            <p className="text-xl font-black text-[#0f172a]">{tableNumber}</p>
           </div>
           <div className="bg-white px-5 py-3 rounded-[20px] border border-[#f1f5f9] shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col items-center min-w-[90px]">
             <p className="text-[10px] text-[#94a3b8] font-bold uppercase tracking-wider mb-0.5">Guests</p>
-            <p className="text-xl font-black text-[#0f172a]">4</p>
+            <p className="text-xl font-black text-[#0f172a]">{guests}</p>
           </div>
         </div>
 

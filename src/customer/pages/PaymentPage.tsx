@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, CreditCard, Wallet, Smartphone, Banknote } from 'lucide-react';
 import { useCartStore } from '../store/useCartStore';
 import { useOrderStore } from '../store/useOrderStore';
+import { useAdminStore } from '../../admin/store/useAdminStore';
+import { useChefStore } from '../../chef/store/useChefStore';
 import { motion } from 'framer-motion';
 
 const PAYMENT_METHODS = [
@@ -18,13 +20,31 @@ export function PaymentPage() {
   const [selectedMethod, setSelectedMethod] = useState('gpay');
   const cartTotal = useCartStore(state => state.getCartTotal());
   const clearCart = useCartStore(state => state.clearCart);
+  const cartItems = useCartStore(state => state.items);
+  const tableNumber = useCartStore(state => state.tableNumber);
   const setOrderStatus = useOrderStore(state => state.setStatus);
+  const setEstimatedTime = useOrderStore(state => state.setEstimatedTime);
+  const setOrderId = useOrderStore(state => state.setOrderId);
   
   const grandTotal = cartTotal + (cartTotal * 0.05);
 
-  const handlePayment = () => {
-    // Simulate payment process
+  const handlePayment = async () => {
+    // Calculate prep time: sum of all item prep times
+    const menuItems = useAdminStore.getState().menuItems;
+    const calculatedPrepTime = cartItems.reduce((sum, cartItem) => {
+      const menuItem = menuItems.find(item => item.id === cartItem.id || item.name === cartItem.name);
+      const itemPrep = menuItem?.prepTime || 10;
+      return sum + (itemPrep * cartItem.quantity);
+    }, 0);
+
+    // Send order to KDS (useChefStore)
+    const chefOrderItems = cartItems.map(item => ({ name: item.name, quantity: item.quantity }));
+    const newOrderId = await useChefStore.getState().addNewOrder(chefOrderItems, tableNumber, calculatedPrepTime);
+
+    // Save details to Customer Order State
+    setOrderId(newOrderId);
     setOrderStatus('Confirmed');
+    setEstimatedTime(calculatedPrepTime);
     clearCart();
     navigate('/tracking');
   };

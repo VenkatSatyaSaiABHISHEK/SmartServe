@@ -35,7 +35,7 @@ export function DeliveryHistoryPage() {
           placeholder="Search by order ID, table, or food item..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-11 pr-4 py-3.5 bg-white border border-[#f1f5f9] rounded-[22px] text-sm text-[#1e293b] placeholder-slate-400 focus:outline-none focus:border-purple-300 transition-colors shadow-[0_2px_10px_rgba(0,0,0,0.01)]"
+          className="w-full pl-11 pr-4 py-3.5 bg-white border border-[#f1f5f9] rounded-[22px] text-sm text-[#1e293b] placeholder-slate-400 focus:outline-none focus:border-blue-300 transition-colors shadow-[0_2px_10px_rgba(0,0,0,0.01)]"
         />
       </div>
 

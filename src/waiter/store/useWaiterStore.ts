@@ -1,32 +1,62 @@
 import { create } from 'zustand';
 import type { Waiter, WaiterOrder, ActiveTable, WaiterNotification } from '../types';
+import { db } from '../../firebase/config';
+import { doc, getDoc, updateDoc, collection, onSnapshot } from 'firebase/firestore';
 
 interface WaiterState {
   waiter: Waiter | null;
+  waiters: Waiter[];
   orders: WaiterOrder[];
   tables: ActiveTable[];
   notifications: WaiterNotification[];
-  login: (credentials: { pin: string }) => boolean;
+  login: (id: string, pin: string) => Promise<boolean>;
   logout: () => void;
   toggleOnlineStatus: () => void;
   addTip: (amount: number) => void;
-  updateOrderStatus: (orderId: string, status: WaiterOrder['status']) => void;
+  updateOrderStatus: (orderId: string, status: WaiterOrder['status']) => Promise<void>;
   updateTableStatus: (tableId: string, status: ActiveTable['status']) => void;
+  assignTable: (tableId: string, waiterId: string) => void;
+  unassignTable: (tableId: string) => void;
+  clearTable: (tableId: string) => void;
   addNotification: (notification: Omit<WaiterNotification, 'id' | 'time' | 'read'>) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   getUnreadNotificationsCount: () => number;
+  listenToWaiters: () => (() => void);
+  listenToOrders: () => (() => void);
 }
 
-const MOCK_WAITER: Waiter = {
-  id: 'W1',
-  name: 'John Doe',
-  email: 'john.doe@restaurant.com',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-  onlineStatus: true,
-  rating: 4.9,
-  totalDeliveries: 124,
-  todayTips: 42.50,
+const playChimeSound = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    
+    const playNote = (frequency: number, startTime: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.value = frequency;
+      
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+    
+    // Play double beep chime: C5 note then G5 note
+    playNote(523.25, now, 0.15);      
+    playNote(783.99, now + 0.12, 0.35); 
+  } catch (error) {
+    console.error("Web Audio API failed to play ready chime:", error);
+  }
 };
 
 const MOCK_TABLES: ActiveTable[] = [
@@ -42,41 +72,6 @@ const MOCK_TABLES: ActiveTable[] = [
   { id: 'T10', number: 10, capacity: 4, status: 'occupied' },
   { id: 'T11', number: 11, capacity: 6, status: 'idle' },
   { id: 'T12', number: 12, capacity: 2, status: 'idle' },
-];
-
-const MOCK_ORDERS: WaiterOrder[] = [
-  {
-    id: 'O101',
-    tableId: '4',
-    items: [
-      { name: 'Truffle Mushroom Risotto', quantity: 1 },
-      { name: 'Artisan Burrata', quantity: 1 }
-    ],
-    price: 41.49,
-    status: 'Ready', // Ready for collection
-    timeOrdered: '10:15 PM',
-  },
-  {
-    id: 'O102',
-    tableId: '9',
-    items: [
-      { name: 'Wagyu Beef Burger', quantity: 2 },
-      { name: 'Matcha Lava Cake', quantity: 1 }
-    ],
-    price: 71.99,
-    status: 'Preparing',
-    timeOrdered: '10:25 PM',
-  },
-  {
-    id: 'O103',
-    tableId: '3',
-    items: [
-      { name: 'Salmon Tartare', quantity: 1 }
-    ],
-    price: 18.00,
-    status: 'Delivered',
-    timeOrdered: '09:45 PM',
-  }
 ];
 
 const MOCK_NOTIFICATIONS: WaiterNotification[] = [
@@ -105,70 +100,149 @@ const MOCK_NOTIFICATIONS: WaiterNotification[] = [
 
 export const useWaiterStore = create<WaiterState>((set, get) => ({
   waiter: null,
-  orders: MOCK_ORDERS,
+  waiters: [],
+  orders: [],
   tables: MOCK_TABLES,
   notifications: MOCK_NOTIFICATIONS,
   
-  login: (credentials) => {
-    if (credentials.pin === '1234') {
-      set({ waiter: MOCK_WAITER });
-      return true;
+  login: async (id, pin) => {
+    try {
+      const waiterDoc = await getDoc(doc(db, 'waiters', id));
+      if (waiterDoc.exists()) {
+        const waiterData = waiterDoc.data() as Waiter;
+        if (waiterData.pin === pin) {
+          set({ waiter: { ...waiterData, onlineStatus: true, status: 'Active' } });
+          await updateDoc(doc(db, 'waiters', id), { 
+            status: 'Active',
+            onlineStatus: true 
+          });
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error("Error in waiter login:", error);
     }
     return false;
   },
 
-  logout: () => set({ waiter: null }),
-
-  toggleOnlineStatus: () => set((state) => {
-    if (!state.waiter) return {};
-    return {
-      waiter: {
-        ...state.waiter,
-        onlineStatus: !state.waiter.onlineStatus
+  logout: async () => {
+    const waiter = get().waiter;
+    if (waiter) {
+      try {
+        await updateDoc(doc(db, 'waiters', waiter.id), { 
+          status: 'Offline',
+          onlineStatus: false 
+        });
+      } catch (error) {
+        console.error("Error setting waiter offline on logout:", error);
       }
-    };
-  }),
+    }
+    set({ waiter: null });
+  },
 
-  addTip: (amount) => set((state) => {
-    if (!state.waiter) return {};
-    return {
-      waiter: {
-        ...state.waiter,
-        todayTips: state.waiter.todayTips + amount
-      }
-    };
-  }),
+  toggleOnlineStatus: async () => {
+    const waiter = get().waiter;
+    if (!waiter) return;
+    const nextOnline = !waiter.onlineStatus;
+    const nextStatus = nextOnline ? 'Active' : 'Offline';
+    try {
+      await updateDoc(doc(db, 'waiters', waiter.id), {
+        onlineStatus: nextOnline,
+        status: nextStatus
+      });
+      set({ 
+        waiter: { 
+          ...waiter, 
+          onlineStatus: nextOnline,
+          status: nextStatus 
+        } 
+      });
+    } catch (error) {
+      console.error("Error toggling waiter online status:", error);
+    }
+  },
 
-  updateOrderStatus: (orderId, status) => set((state) => {
-    // If order becomes delivered, increase delivery count and add simulated tip
+  addTip: async (amount) => {
+    const waiter = get().waiter;
+    if (!waiter) return;
+    const nextTips = waiter.todayTips + amount;
+    try {
+      await updateDoc(doc(db, 'waiters', waiter.id), { todayTips: nextTips });
+      set({ waiter: { ...waiter, todayTips: nextTips } });
+    } catch (error) {
+      console.error("Error adding waiter tip:", error);
+    }
+  },
+
+  updateOrderStatus: async (orderId, status) => {
     const isNowDelivered = status === 'Delivered';
-    const currentOrder = state.orders.find(o => o.id === orderId);
+    const currentOrder = get().orders.find(o => o.id === orderId);
     const wasAlreadyDelivered = currentOrder?.status === 'Delivered';
     
     let tipAmount = 0;
     let deliveryIncrement = 0;
     
     if (isNowDelivered && !wasAlreadyDelivered && currentOrder) {
-      tipAmount = Math.round(currentOrder.price * 0.1); // 10% tip simulation
+      tipAmount = Math.round(currentOrder.price * 0.1);
       deliveryIncrement = 1;
     }
 
-    return {
-      orders: state.orders.map((order) =>
-        order.id === orderId ? { ...order, status } : order
-      ),
-      waiter: state.waiter ? {
-        ...state.waiter,
-        totalDeliveries: state.waiter.totalDeliveries + deliveryIncrement,
-        todayTips: state.waiter.todayTips + tipAmount
-      } : null
-    };
-  }),
+    try {
+      await updateDoc(doc(db, 'orders', orderId), { status });
+    } catch (error) {
+      console.error("Error updating order status in Firestore:", error);
+    }
+
+    const waiter = get().waiter;
+    if (waiter && (tipAmount > 0 || deliveryIncrement > 0)) {
+      try {
+        const nextDeliveries = waiter.totalDeliveries + deliveryIncrement;
+        const nextTips = waiter.todayTips + tipAmount;
+        await updateDoc(doc(db, 'waiters', waiter.id), {
+          totalDeliveries: nextDeliveries,
+          todayTips: nextTips
+        });
+        set({
+          waiter: {
+            ...waiter,
+            totalDeliveries: nextDeliveries,
+            todayTips: nextTips
+          }
+        });
+      } catch (error) {
+        console.error("Error updating waiter stats:", error);
+      }
+    }
+  },
 
   updateTableStatus: (tableId, status) => set((state) => ({
     tables: state.tables.map((table) =>
       table.id === tableId || `T${table.number}` === tableId || table.number.toString() === tableId
         ? { ...table, status }
+        : table
+    )
+  })),
+
+  assignTable: (tableId, waiterId) => set((state) => ({
+    tables: state.tables.map((table) =>
+      table.id === tableId || `T${table.number}` === tableId || table.number.toString() === tableId
+        ? { ...table, assignedWaiterId: waiterId, status: 'occupied' as const }
+        : table
+    )
+  })),
+
+  unassignTable: (tableId) => set((state) => ({
+    tables: state.tables.map((table) =>
+      table.id === tableId || `T${table.number}` === tableId || table.number.toString() === tableId
+        ? { ...table, assignedWaiterId: undefined }
+        : table
+    )
+  })),
+
+  clearTable: (tableId) => set((state) => ({
+    tables: state.tables.map((table) =>
+      table.id === tableId || `T${table.number}` === tableId || table.number.toString() === tableId
+        ? { ...table, assignedWaiterId: undefined, status: 'idle' as const }
         : table
     )
   })),
@@ -198,5 +272,63 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
   getUnreadNotificationsCount: () => {
     const state = get();
     return state.notifications.filter((n) => !n.read).length;
+  },
+
+  listenToWaiters: () => {
+    const waitersCol = collection(db, 'waiters');
+    return onSnapshot(waitersCol, (snapshot) => {
+      const items: Waiter[] = [];
+      snapshot.forEach((doc) => {
+        items.push(doc.data() as Waiter);
+      });
+      items.sort((a, b) => a.id.localeCompare(b.id));
+      
+      const currentWaiter = get().waiter;
+      let updatedWaiter = currentWaiter;
+      if (currentWaiter) {
+        const found = items.find(w => w.id === currentWaiter.id);
+        if (found) {
+          updatedWaiter = found;
+        }
+      }
+      set({ waiters: items, waiter: updatedWaiter });
+    });
+  },
+
+  listenToOrders: () => {
+    const ordersCol = collection(db, 'orders');
+    return onSnapshot(ordersCol, (snapshot) => {
+      const items: WaiterOrder[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        items.push({
+          id: data.id,
+          tableId: String(data.tableNumber),
+          items: data.items,
+          price: data.price || (data.prepTimeMins * 3.5 + 10.0),
+          status: data.status,
+          timeOrdered: data.timeReceived,
+          createdAt: data.createdAt
+        });
+      });
+      items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      // Trigger automatic notification and play chime when order transitions to 'Ready'
+      const prevOrders = get().orders;
+      if (prevOrders.length > 0) {
+        items.forEach((order) => {
+          const prevOrder = prevOrders.find(o => o.id === order.id);
+          if (order.status === 'Ready' && prevOrder && prevOrder.status !== 'Ready') {
+            get().addNotification({
+              type: 'table_ready',
+              message: `Table ${order.tableId}: Order ${order.id} is ready for collection! 🍽️`
+            });
+            playChimeSound();
+          }
+        });
+      }
+
+      set({ orders: items });
+    });
   }
 }));

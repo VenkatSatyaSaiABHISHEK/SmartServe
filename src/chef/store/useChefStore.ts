@@ -1,45 +1,25 @@
 import { create } from 'zustand';
 import type { Chef, ChefOrder } from '../types';
+import { db } from '../../firebase/config';
+import { doc, getDoc, collection, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 
 interface ChefState {
   activeChef: Chef | null;
   chefs: Chef[];
   orders: ChefOrder[];
-  login: (chefId: string) => void;
+  login: (chefId: string, pin: string) => Promise<boolean>;
   logout: () => void;
-  addNewOrder: (items: { name: string; quantity: number }[], tableNumber: number, prepTimeMins: number) => void;
-  startPreparing: (orderId: string) => void;
-  markReady: (orderId: string) => void;
-  markCompleted: (orderId: string) => void;
+  addNewOrder: (items: { name: string; quantity: number }[], tableNumber: number, prepTimeMins: number, price?: number, paymentMethod?: string, paymentStatus?: 'Unpaid' | 'Paid') => Promise<string>;
+  startPreparing: (orderId: string) => Promise<void>;
+  markReady: (orderId: string) => Promise<void>;
+  markCompleted: (orderId: string) => Promise<void>;
   getChefActiveLoad: (chefId: string) => number;
+  listenToChefs: () => (() => void);
+  listenToOrders: () => (() => void);
+  tickOrdersAndBreaks: () => Promise<void>;
+  startTicking: () => void;
+  stopTicking: () => void;
 }
-
-const MOCK_CHEFS: Chef[] = [
-  {
-    id: 'C1',
-    name: 'Chef Ramsay',
-    avatar: 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?q=80&w=200&auto=format&fit=crop',
-    rating: 4.9,
-    ordersPrepared: 242,
-    activeLoad: 1,
-  },
-  {
-    id: 'C2',
-    name: 'Chef Bourdain',
-    avatar: 'https://images.unsplash.com/photo-1583394838336-acd977736f90?q=80&w=200&auto=format&fit=crop',
-    rating: 4.8,
-    ordersPrepared: 198,
-    activeLoad: 1,
-  },
-  {
-    id: 'C3',
-    name: 'Chef Chang',
-    avatar: 'https://images.unsplash.com/photo-1595273670150-db0a3e390294?q=80&w=200&auto=format&fit=crop',
-    rating: 4.7,
-    ordersPrepared: 156,
-    activeLoad: 0,
-  }
-];
 
 const MOCK_ORDERS: ChefOrder[] = [
   {
@@ -49,7 +29,10 @@ const MOCK_ORDERS: ChefOrder[] = [
     prepTimeMins: 15,
     status: 'Preparing',
     assignedChefId: 'C1',
-    timeReceived: '10:35 PM'
+    timeReceived: '10:35 PM',
+    createdAt: Date.now() - 600000,
+    startedPreparingAt: Date.now() - 300000,
+    completedAt: Date.now() + 600000,
   },
   {
     id: 'O202',
@@ -58,7 +41,10 @@ const MOCK_ORDERS: ChefOrder[] = [
     prepTimeMins: 10,
     status: 'New',
     assignedChefId: 'C1',
-    timeReceived: '10:41 PM'
+    timeReceived: '10:41 PM',
+    createdAt: Date.now() - 300000,
+    startedPreparingAt: null,
+    completedAt: null,
   },
   {
     id: 'O203',
@@ -67,7 +53,10 @@ const MOCK_ORDERS: ChefOrder[] = [
     prepTimeMins: 12,
     status: 'Ready',
     assignedChefId: 'C2',
-    timeReceived: '10:28 PM'
+    timeReceived: '10:28 PM',
+    createdAt: Date.now() - 1200000,
+    startedPreparingAt: Date.now() - 1200000,
+    completedAt: Date.now() - 600000,
   },
   {
     id: 'O204',
@@ -76,18 +65,34 @@ const MOCK_ORDERS: ChefOrder[] = [
     prepTimeMins: 8,
     status: 'Completed',
     assignedChefId: 'C2',
-    timeReceived: '10:05 PM'
+    timeReceived: '10:05 PM',
+    createdAt: Date.now() - 1800000,
+    startedPreparingAt: Date.now() - 1800000,
+    completedAt: Date.now() - 1300000,
   }
 ];
 
+let tickInterval: any = null;
+
 export const useChefStore = create<ChefState>((set, get) => ({
   activeChef: null,
-  chefs: MOCK_CHEFS,
-  orders: MOCK_ORDERS,
+  chefs: [],
+  orders: [],
 
-  login: (chefId) => {
-    const chef = get().chefs.find(c => c.id === chefId) || null;
-    set({ activeChef: chef });
+  login: async (chefId, pin) => {
+    try {
+      const chefDoc = await getDoc(doc(db, 'chefs', chefId));
+      if (chefDoc.exists()) {
+        const chefData = chefDoc.data() as Chef;
+        if (chefData.pin === pin) {
+          set({ activeChef: chefData });
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error("Error in chef login:", error);
+    }
+    return false;
   },
 
   logout: () => set({ activeChef: null }),
@@ -98,39 +103,41 @@ export const useChefStore = create<ChefState>((set, get) => ({
     ).length;
   },
 
-  addNewOrder: (items, tableNumber, prepTimeMins) => set((state) => {
+  addNewOrder: async (items, tableNumber, prepTimeMins, price, paymentMethod, paymentStatus) => {
+    const state = get();
     const newOrderId = `O${Math.floor(Math.random() * 900) + 100}`;
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // --- AUTOMATIC LOAD BALANCING ALGORITHM ---
-    const getActiveLoad = (chefId: string) => {
-      return state.orders.filter(o => 
-        o.assignedChefId === chefId && (o.status === 'New' || o.status === 'Preparing')
-      ).length;
-    };
+    // --- SMART ROUTING BASED ON CHEF AVAILABILITY TIME ---
+    const now = Date.now();
+    const chefAvailabilityTimes = state.chefs.map(chef => {
+      const chefOrders = state.orders.filter(o => o.assignedChefId === chef.id && (o.status === 'New' || o.status === 'Preparing'));
+      
+      // If chef has no active orders
+      if (chefOrders.length === 0) {
+        // If they are on break, they are available after break completes
+        const breakTime = chef.breakUntil || 0;
+        return { id: chef.id, availableAt: Math.max(now, breakTime) };
+      }
+      
+      // If they have active orders, calculate total preparation queue time
+      const preparingOrder = chefOrders.find(o => o.status === 'Preparing');
+      const activePrepEndTime = preparingOrder?.completedAt || now;
+      
+      const newOrdersQueueTime = chefOrders
+        .filter(o => o.status === 'New')
+        .reduce((sum, o) => sum + (o.prepTimeMins * 60 * 1000), 0);
+        
+      // Availability = preparation end time + queue time + 5 mins break
+      const totalPrepEndTime = Math.max(now, activePrepEndTime) + newOrdersQueueTime;
+      const finalAvailableAt = totalPrepEndTime + (5 * 60 * 1000); // 5 min break
+      
+      return { id: chef.id, availableAt: finalAvailableAt };
+    });
 
-    const c1Load = getActiveLoad('C1');
-    const c2Load = getActiveLoad('C2');
-    const c3Load = getActiveLoad('C3');
-
-    let assignedChefId = 'C1';
-    
-    if (c1Load < 2) {
-      assignedChefId = 'C1';
-    } else if (c2Load < 2) {
-      assignedChefId = 'C2';
-    } else if (c3Load < 2) {
-      assignedChefId = 'C3';
-    } else {
-      // Fallback: assign to the chef with the absolute lowest active workload
-      const loads = [
-        { id: 'C1', load: c1Load },
-        { id: 'C2', load: c2Load },
-        { id: 'C3', load: c3Load }
-      ];
-      loads.sort((a, b) => a.load - b.load);
-      assignedChefId = loads[0].id;
-    }
+    // Sort chefs by availability time (earliest first)
+    chefAvailabilityTimes.sort((a, b) => a.availableAt - b.availableAt);
+    const assignedChefId = chefAvailabilityTimes.length > 0 ? chefAvailabilityTimes[0].id : 'C1';
 
     const newOrder: ChefOrder = {
       id: newOrderId,
@@ -139,108 +146,194 @@ export const useChefStore = create<ChefState>((set, get) => ({
       prepTimeMins,
       status: 'New',
       assignedChefId,
-      timeReceived: timeNow
+      timeReceived: timeNow,
+      createdAt: now,
+      startedPreparingAt: null,
+      completedAt: null,
+      price: price || (prepTimeMins * 3.5 + 10.0),
+      paymentMethod: paymentMethod || 'later',
+      paymentStatus: paymentStatus || 'Unpaid'
     };
 
-    // Update chef activeLoads list
-    const updatedChefs = state.chefs.map(chef => ({
-      ...chef,
-      activeLoad: chef.id === assignedChefId ? getActiveLoad(assignedChefId) + 1 : getActiveLoad(chef.id)
-    }));
-
-    return {
-      orders: [newOrder, ...state.orders],
-      chefs: updatedChefs
-    };
-  }),
-
-  startPreparing: (orderId) => set((state) => {
-    const updatedOrders = state.orders.map(order => 
-      order.id === orderId ? { ...order, status: 'Preparing' as const } : order
-    );
-
-    // Update chef activeLoads
-    const updatedChefs = state.chefs.map(chef => {
-      const getActiveLoad = (chefId: string) => {
-        return updatedOrders.filter(o => 
-          o.assignedChefId === chefId && (o.status === 'New' || o.status === 'Preparing')
-        ).length;
-      };
-      return { ...chef, activeLoad: getActiveLoad(chef.id) };
-    });
-
-    const activeChef = state.activeChef 
-      ? updatedChefs.find(c => c.id === state.activeChef?.id) || null
-      : null;
-
-    return {
-      orders: updatedOrders,
-      chefs: updatedChefs,
-      activeChef
-    };
-  }),
-
-  markReady: (orderId) => set((state) => {
-    const updatedOrders = state.orders.map(order => 
-      order.id === orderId ? { ...order, status: 'Ready' as const } : order
-    );
-
-    // Update chef activeLoads
-    const updatedChefs = state.chefs.map(chef => {
-      const getActiveLoad = (chefId: string) => {
-        return updatedOrders.filter(o => 
-          o.assignedChefId === chefId && (o.status === 'New' || o.status === 'Preparing')
-        ).length;
-      };
-      return { ...chef, activeLoad: getActiveLoad(chef.id) };
-    });
-
-    const activeChef = state.activeChef 
-      ? updatedChefs.find(c => c.id === state.activeChef?.id) || null
-      : null;
-
-    return {
-      orders: updatedOrders,
-      chefs: updatedChefs,
-      activeChef
-    };
-  }),
-
-  markCompleted: (orderId) => set((state) => {
-    const targetOrder = state.orders.find(o => o.id === orderId);
-    const wasAlreadyCompleted = targetOrder?.status === 'Completed';
-    const chefId = targetOrder?.assignedChefId;
-
-    const updatedOrders = state.orders.map(order => 
-      order.id === orderId ? { ...order, status: 'Completed' as const } : order
-    );
-
-    // Increment prepared count if it transitioned to completed
-    const updatedChefs = state.chefs.map(chef => {
-      const getActiveLoad = (chefId: string) => {
-        return updatedOrders.filter(o => 
-          o.assignedChefId === chefId && (o.status === 'New' || o.status === 'Preparing')
-        ).length;
-      };
+    try {
+      // Write order to Firestore
+      await setDoc(doc(db, 'orders', newOrderId), newOrder);
       
-      const isAssigned = chef.id === chefId;
-      const increment = (isAssigned && !wasAlreadyCompleted) ? 1 : 0;
+      // Update chef workload in Firestore
+      const activeLoadCount = state.orders.filter(o => 
+        o.assignedChefId === assignedChefId && (o.status === 'New' || o.status === 'Preparing')
+      ).length + 1;
       
-      return { 
-        ...chef, 
-        activeLoad: getActiveLoad(chef.id),
-        ordersPrepared: chef.ordersPrepared + increment
-      };
+      await updateDoc(doc(db, 'chefs', assignedChefId), {
+        activeLoad: activeLoadCount
+      });
+    } catch (e) {
+      console.error("Error creating new order in Firestore:", e);
+    }
+    return newOrderId;
+  },
+
+  startPreparing: async (orderId) => {
+    try {
+      const orderRef = doc(db, 'orders', orderId);
+      const orderDoc = await getDoc(orderRef);
+      if (orderDoc.exists()) {
+        const orderData = orderDoc.data() as ChefOrder;
+        const completedAt = Date.now() + (orderData.prepTimeMins * 60 * 1000);
+        
+        await updateDoc(orderRef, {
+          status: 'Preparing',
+          startedPreparingAt: Date.now(),
+          completedAt
+        });
+      }
+    } catch (e) {
+      console.error("Error starting preparation:", e);
+    }
+  },
+
+  markReady: async (orderId) => {
+    try {
+      const orderRef = doc(db, 'orders', orderId);
+      const orderDoc = await getDoc(orderRef);
+      if (orderDoc.exists()) {
+        const orderData = orderDoc.data() as ChefOrder;
+        const chefId = orderData.assignedChefId;
+        
+        // Update order status to Ready
+        await updateDoc(orderRef, { status: 'Ready' });
+
+        // Put chef on a 5-minute break and update stats
+        const chefRef = doc(db, 'chefs', chefId);
+        const chefDoc = await getDoc(chefRef);
+        if (chefDoc.exists()) {
+          const chefData = chefDoc.data() as Chef;
+          const newPreparedCount = (chefData.ordersPrepared || 0) + 1;
+          const activeLoadCount = get().orders.filter(o => 
+            o.assignedChefId === chefId && (o.status === 'New' || o.status === 'Preparing')
+          ).length;
+
+          await updateDoc(chefRef, {
+            breakUntil: Date.now() + (5 * 60 * 1000), // 5 min break
+            ordersPrepared: newPreparedCount,
+            activeLoad: activeLoadCount
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Error marking order ready:", e);
+    }
+  },
+
+  markCompleted: async (orderId) => {
+    try {
+      const orderRef = doc(db, 'orders', orderId);
+      const orderDoc = await getDoc(orderRef);
+      if (orderDoc.exists()) {
+        const orderData = orderDoc.data() as ChefOrder;
+        await updateDoc(orderRef, { status: 'Completed' });
+        
+        // Update active load count for chef
+        const chefId = orderData.assignedChefId;
+        const activeLoadCount = get().orders.filter(o => 
+          o.assignedChefId === chefId && (o.status === 'New' || o.status === 'Preparing')
+        ).length;
+        
+        await updateDoc(doc(db, 'chefs', chefId), {
+          activeLoad: activeLoadCount
+        });
+      }
+    } catch (e) {
+      console.error("Error completing order:", e);
+    }
+  },
+
+  listenToChefs: () => {
+    const chefsCol = collection(db, 'chefs');
+    return onSnapshot(chefsCol, (snapshot) => {
+      const items: Chef[] = [];
+      snapshot.forEach((doc) => {
+        items.push(doc.data() as Chef);
+      });
+      items.sort((a, b) => a.id.localeCompare(b.id));
+      
+      const currentChef = get().activeChef;
+      let updatedChef = currentChef;
+      if (currentChef) {
+        const found = items.find(c => c.id === currentChef.id);
+        if (found) {
+          updatedChef = found;
+        }
+      }
+      set({ chefs: items, activeChef: updatedChef });
     });
+  },
 
-    const activeChef = state.activeChef 
-      ? updatedChefs.find(c => c.id === state.activeChef?.id) || null
-      : null;
+  listenToOrders: () => {
+    const ordersCol = collection(db, 'orders');
+    let isInitialFetch = true;
+    return onSnapshot(ordersCol, async (snapshot) => {
+      if (snapshot.empty && isInitialFetch) {
+        isInitialFetch = false;
+        // Seed database if empty
+        for (const order of MOCK_ORDERS) {
+          await setDoc(doc(db, 'orders', order.id), order);
+        }
+      } else {
+        const items: ChefOrder[] = [];
+        snapshot.forEach((doc) => {
+          items.push(doc.data() as ChefOrder);
+        });
+        items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        set({ orders: items });
+      }
+    });
+  },
 
-    return {
-      orders: updatedOrders,
-      chefs: updatedChefs,
-      activeChef
-    };
-  })
+  tickOrdersAndBreaks: async () => {
+    const state = get();
+    const now = Date.now();
+
+    // 1. Auto-complete preparing orders that exceeded completedAt
+    const preparingOrders = state.orders.filter(o => o.status === 'Preparing');
+    for (const order of preparingOrders) {
+      if (order.completedAt && now >= order.completedAt) {
+        console.log(`Auto-completing order ${order.id} to Ready`);
+        await state.markReady(order.id);
+      }
+    }
+
+    // 2. Auto-start pending orders for chefs whose break ended
+    for (const chef of state.chefs) {
+      const chefOrders = state.orders.filter(o => o.assignedChefId === chef.id);
+      const hasPreparing = chefOrders.some(o => o.status === 'Preparing');
+      const onBreak = chef.breakUntil && now < chef.breakUntil;
+
+      // If the chef has no preparing order and is not on break, check if there is a pending order in their queue
+      if (!hasPreparing && !onBreak) {
+        const pendingOrders = chefOrders.filter(o => o.status === 'New');
+        if (pendingOrders.length > 0) {
+          // Sort by createdAt ascending (oldest first)
+          pendingOrders.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+          const nextOrder = pendingOrders[0];
+          console.log(`Auto-starting order ${nextOrder.id} for chef ${chef.name}`);
+          await state.startPreparing(nextOrder.id);
+        }
+      }
+    }
+  },
+
+  startTicking: () => {
+    if (tickInterval) return;
+    tickInterval = setInterval(() => {
+      get().tickOrdersAndBreaks();
+    }, 1000);
+  },
+
+  stopTicking: () => {
+    if (tickInterval) {
+      clearInterval(tickInterval);
+      tickInterval = null;
+    }
+  }
 }));
