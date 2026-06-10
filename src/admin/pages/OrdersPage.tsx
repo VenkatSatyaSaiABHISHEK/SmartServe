@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useChefStore } from '../../chef/store/useChefStore';
+import { useAdminStore } from '../store/useAdminStore';
 import { Search, Printer, HelpCircle, UtensilsCrossed, Clock, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function OrdersPage() {
   const chefStore = useChefStore();
+  const chefs = useAdminStore((state) => state.chefs);
+  const currency = useAdminStore((state) => state.currency);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'New' | 'Preparing' | 'Ready' | 'Completed'>('All');
   
@@ -108,9 +111,19 @@ export function OrdersPage() {
               </thead>
               <tbody className="divide-y divide-[#f1f5f9]">
                 {filteredOrders.map((order) => {
-                  const billSum = getOrderTotal(order.items);
-                  const tax = billSum * 0.05; // 5% GST
-                  const finalBill = billSum + tax;
+                  let finalBill = 0;
+                  let billSum = 0;
+                  let tax = 0;
+                  
+                  if (order.price) {
+                    finalBill = order.price;
+                    billSum = finalBill / 1.05;
+                    tax = finalBill - billSum;
+                  } else {
+                    billSum = getOrderTotal(order.items);
+                    tax = billSum * 0.05;
+                    finalBill = billSum + tax;
+                  }
                   
                   const statusColors = {
                     'New': 'bg-blue-50 text-blue-600 border border-blue-100',
@@ -144,12 +157,19 @@ export function OrdersPage() {
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-1.5 text-slate-700">
                           <span className="h-1.5 w-1.5 bg-purple-500 rounded-full" />
-                          <span>{order.assignedChefId === 'C1' ? 'Chef Ramsay' : order.assignedChefId === 'C2' ? 'Chef Bourdain' : 'Chef Chang'}</span>
+                          <span>{chefs.find(c => c.id === order.assignedChefId)?.name || `Chef (${order.assignedChefId})`}</span>
                         </div>
                       </td>
                       <td className="px-6 py-5">
-                        <div className="text-[#0f172a] font-black">${finalBill.toFixed(2)}</div>
+                        <div className="text-[#0f172a] font-black">{currency}{finalBill.toFixed(2)}</div>
                         <div className="text-[10px] text-slate-400 font-semibold mt-0.5">Incl. 5% GST</div>
+                        <span className={`inline-block text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md mt-1.5 ${
+                          order.paymentStatus === 'Paid'
+                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                            : 'bg-amber-50 text-amber-600 border border-amber-100'
+                        }`}>
+                          {order.paymentStatus || 'Unpaid'} ({order.paymentMethod || 'later'})
+                        </span>
                       </td>
                       <td className="px-6 py-5">
                         <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${statusColors[order.status]}`}>

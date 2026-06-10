@@ -39,7 +39,14 @@ export function PaymentPage() {
 
     // Send order to KDS (useChefStore)
     const chefOrderItems = cartItems.map(item => ({ name: item.name, quantity: item.quantity }));
-    const newOrderId = await useChefStore.getState().addNewOrder(chefOrderItems, tableNumber, calculatedPrepTime);
+    const newOrderId = await useChefStore.getState().addNewOrder(
+      chefOrderItems, 
+      tableNumber, 
+      calculatedPrepTime,
+      grandTotal,
+      selectedMethod,
+      'Paid'
+    );
 
     // Save details to Customer Order State
     setOrderId(newOrderId);
@@ -64,7 +71,7 @@ export function PaymentPage() {
       <div className="px-6 flex-1">
         <div className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 mb-8 flex flex-col items-center justify-center py-10">
           <p className="text-slate-500 font-medium mb-2">Total Amount</p>
-          <h2 className="text-4xl font-bold text-slate-800">${grandTotal.toFixed(2)}</h2>
+          <h2 className="text-4xl font-bold text-slate-800">₹{grandTotal.toFixed(2)}</h2>
         </div>
 
         <h3 className="text-lg font-bold text-slate-800 mb-4 px-2">Choose Payment Method</h3>

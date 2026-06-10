@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import type { Waiter, WaiterOrder, ActiveTable, WaiterNotification } from '../types';
 import { db } from '../../firebase/config';
-import { doc, getDoc, updateDoc, collection, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, collection, onSnapshot } from 'firebase/firestore';
 
 interface WaiterState {
   waiter: Waiter | null;
   waiters: Waiter[];
+  waitersLoaded: boolean;
   orders: WaiterOrder[];
   tables: ActiveTable[];
   notifications: WaiterNotification[];
@@ -14,16 +15,18 @@ interface WaiterState {
   toggleOnlineStatus: () => void;
   addTip: (amount: number) => void;
   updateOrderStatus: (orderId: string, status: WaiterOrder['status']) => Promise<void>;
-  updateTableStatus: (tableId: string, status: ActiveTable['status']) => void;
-  assignTable: (tableId: string, waiterId: string) => void;
-  unassignTable: (tableId: string) => void;
-  clearTable: (tableId: string) => void;
-  addNotification: (notification: Omit<WaiterNotification, 'id' | 'time' | 'read'>) => void;
-  markNotificationRead: (id: string) => void;
-  markAllNotificationsRead: () => void;
+  updateTableStatus: (tableId: string, status: ActiveTable['status']) => Promise<void>;
+  assignTable: (tableId: string, waiterId: string) => Promise<void>;
+  unassignTable: (tableId: string) => Promise<void>;
+  clearTable: (tableId: string) => Promise<void>;
+  addNotification: (notification: Omit<WaiterNotification, 'id' | 'time' | 'read'>) => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
   getUnreadNotificationsCount: () => number;
   listenToWaiters: () => (() => void);
   listenToOrders: () => (() => void);
+  listenToTables: () => (() => void);
+  listenToNotifications: () => (() => void);
 }
 
 const playChimeSound = () => {
@@ -59,51 +62,20 @@ const playChimeSound = () => {
   }
 };
 
-const MOCK_TABLES: ActiveTable[] = [
-  { id: 'T1', number: 1, capacity: 2, status: 'idle' },
-  { id: 'T2', number: 2, capacity: 4, status: 'ordering' },
-  { id: 'T3', number: 3, capacity: 4, status: 'occupied' },
-  { id: 'T4', number: 4, capacity: 6, status: 'waiting' },
-  { id: 'T5', number: 5, capacity: 2, status: 'billing' },
-  { id: 'T6', number: 6, capacity: 4, status: 'idle' },
-  { id: 'T7', number: 7, capacity: 4, status: 'billing' },
-  { id: 'T8', number: 8, capacity: 2, status: 'ordering' },
-  { id: 'T9', number: 9, capacity: 8, status: 'waiting' },
-  { id: 'T10', number: 10, capacity: 4, status: 'occupied' },
-  { id: 'T11', number: 11, capacity: 6, status: 'idle' },
-  { id: 'T12', number: 12, capacity: 2, status: 'idle' },
-];
-
-const MOCK_NOTIFICATIONS: WaiterNotification[] = [
-  {
-    id: 'N1',
-    type: 'table_ready',
-    message: 'Table 4 order is ready in the kitchen 🍽️',
-    time: '10:35 PM',
-    read: false,
-  },
-  {
-    id: 'N2',
-    type: 'billing_request',
-    message: 'Table 5 requested the bill 💳',
-    time: '10:41 PM',
-    read: false,
-  },
-  {
-    id: 'N3',
-    type: 'call_waiter',
-    message: 'Table 7 is calling a waiter 🔔',
-    time: '10:28 PM',
-    read: true,
-  }
-];
-
 export const useWaiterStore = create<WaiterState>((set, get) => ({
-  waiter: null,
+  waiter: (() => {
+    try {
+      const saved = localStorage.getItem('activeWaiter');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  })(),
   waiters: [],
+  waitersLoaded: false,
   orders: [],
-  tables: MOCK_TABLES,
-  notifications: MOCK_NOTIFICATIONS,
+  tables: [],
+  notifications: [],
   
   login: async (id, pin) => {
     try {
@@ -111,7 +83,9 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
       if (waiterDoc.exists()) {
         const waiterData = waiterDoc.data() as Waiter;
         if (waiterData.pin === pin) {
-          set({ waiter: { ...waiterData, onlineStatus: true, status: 'Active' } });
+          const loggedWaiter = { ...waiterData, onlineStatus: true, status: 'Active' as const };
+          localStorage.setItem('activeWaiter', JSON.stringify(loggedWaiter));
+          set({ waiter: loggedWaiter });
           await updateDoc(doc(db, 'waiters', id), { 
             status: 'Active',
             onlineStatus: true 
@@ -126,17 +100,7 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
   },
 
   logout: async () => {
-    const waiter = get().waiter;
-    if (waiter) {
-      try {
-        await updateDoc(doc(db, 'waiters', waiter.id), { 
-          status: 'Offline',
-          onlineStatus: false 
-        });
-      } catch (error) {
-        console.error("Error setting waiter offline on logout:", error);
-      }
-    }
+    localStorage.removeItem('activeWaiter');
     set({ waiter: null });
   },
 
@@ -144,18 +108,20 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
     const waiter = get().waiter;
     if (!waiter) return;
     const nextOnline = !waiter.onlineStatus;
-    const nextStatus = nextOnline ? 'Active' : 'Offline';
+    const nextStatus = nextOnline ? 'Active' as const : 'Offline' as const;
     try {
       await updateDoc(doc(db, 'waiters', waiter.id), {
         onlineStatus: nextOnline,
         status: nextStatus
       });
+      const nextWaiter = { 
+        ...waiter, 
+        onlineStatus: nextOnline,
+        status: nextStatus 
+      };
+      localStorage.setItem('activeWaiter', JSON.stringify(nextWaiter));
       set({ 
-        waiter: { 
-          ...waiter, 
-          onlineStatus: nextOnline,
-          status: nextStatus 
-        } 
+        waiter: nextWaiter 
       });
     } catch (error) {
       console.error("Error toggling waiter online status:", error);
@@ -168,7 +134,9 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
     const nextTips = waiter.todayTips + amount;
     try {
       await updateDoc(doc(db, 'waiters', waiter.id), { todayTips: nextTips });
-      set({ waiter: { ...waiter, todayTips: nextTips } });
+      const nextWaiter = { ...waiter, todayTips: nextTips };
+      localStorage.setItem('activeWaiter', JSON.stringify(nextWaiter));
+      set({ waiter: nextWaiter });
     } catch (error) {
       console.error("Error adding waiter tip:", error);
     }
@@ -202,12 +170,14 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
           totalDeliveries: nextDeliveries,
           todayTips: nextTips
         });
+        const nextWaiter = {
+          ...waiter,
+          totalDeliveries: nextDeliveries,
+          todayTips: nextTips
+        };
+        localStorage.setItem('activeWaiter', JSON.stringify(nextWaiter));
         set({
-          waiter: {
-            ...waiter,
-            totalDeliveries: nextDeliveries,
-            todayTips: nextTips
-          }
+          waiter: nextWaiter
         });
       } catch (error) {
         console.error("Error updating waiter stats:", error);
@@ -215,59 +185,83 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
     }
   },
 
-  updateTableStatus: (tableId, status) => set((state) => ({
-    tables: state.tables.map((table) =>
-      table.id === tableId || `T${table.number}` === tableId || table.number.toString() === tableId
-        ? { ...table, status }
-        : table
-    )
-  })),
+  updateTableStatus: async (tableId, status) => {
+    const cleanId = tableId.startsWith('T') ? tableId : `T${tableId}`;
+    try {
+      await updateDoc(doc(db, 'tables', cleanId), { status });
+    } catch (error) {
+      console.error("Error updating table status:", error);
+    }
+  },
 
-  assignTable: (tableId, waiterId) => set((state) => ({
-    tables: state.tables.map((table) =>
-      table.id === tableId || `T${table.number}` === tableId || table.number.toString() === tableId
-        ? { ...table, assignedWaiterId: waiterId, status: 'occupied' as const }
-        : table
-    )
-  })),
+  assignTable: async (tableId, waiterId) => {
+    const cleanId = tableId.startsWith('T') ? tableId : `T${tableId}`;
+    try {
+      await updateDoc(doc(db, 'tables', cleanId), { 
+        assignedWaiterId: waiterId, 
+        status: 'occupied' 
+      });
+    } catch (error) {
+      console.error("Error assigning table:", error);
+    }
+  },
 
-  unassignTable: (tableId) => set((state) => ({
-    tables: state.tables.map((table) =>
-      table.id === tableId || `T${table.number}` === tableId || table.number.toString() === tableId
-        ? { ...table, assignedWaiterId: undefined }
-        : table
-    )
-  })),
+  unassignTable: async (tableId) => {
+    const cleanId = tableId.startsWith('T') ? tableId : `T${tableId}`;
+    try {
+      await updateDoc(doc(db, 'tables', cleanId), { 
+        assignedWaiterId: "" 
+      });
+    } catch (error) {
+      console.error("Error unassigning table:", error);
+    }
+  },
 
-  clearTable: (tableId) => set((state) => ({
-    tables: state.tables.map((table) =>
-      table.id === tableId || `T${table.number}` === tableId || table.number.toString() === tableId
-        ? { ...table, assignedWaiterId: undefined, status: 'idle' as const }
-        : table
-    )
-  })),
+  clearTable: async (tableId) => {
+    const cleanId = tableId.startsWith('T') ? tableId : `T${tableId}`;
+    try {
+      await updateDoc(doc(db, 'tables', cleanId), { 
+        assignedWaiterId: "", 
+        status: 'idle' 
+      });
+    } catch (error) {
+      console.error("Error clearing table:", error);
+    }
+  },
 
-  addNotification: (noti) => set((state) => {
+  addNotification: async (noti) => {
+    const id = `N_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const newNoti: WaiterNotification = {
       ...noti,
-      id: `N${Date.now()}`,
+      id,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       read: false,
     };
-    return {
-      notifications: [newNoti, ...state.notifications]
-    };
-  }),
+    try {
+      await setDoc(doc(db, 'notifications', id), newNoti);
+    } catch (error) {
+      console.error("Error adding notification:", error);
+    }
+  },
 
-  markNotificationRead: (id) => set((state) => ({
-    notifications: state.notifications.map((n) =>
-      n.id === id ? { ...n, read: true } : n
-    )
-  })),
+  markNotificationRead: async (id) => {
+    try {
+      await updateDoc(doc(db, 'notifications', id), { read: true });
+    } catch (error) {
+      console.error("Error marking notification read:", error);
+    }
+  },
 
-  markAllNotificationsRead: () => set((state) => ({
-    notifications: state.notifications.map((n) => ({ ...n, read: true }))
-  })),
+  markAllNotificationsRead: async () => {
+    const unread = get().notifications.filter(n => !n.read);
+    for (const n of unread) {
+      try {
+        await updateDoc(doc(db, 'notifications', n.id), { read: true });
+      } catch (error) {
+        console.error("Error marking notification read:", error);
+      }
+    }
+  },
 
   getUnreadNotificationsCount: () => {
     const state = get();
@@ -291,7 +285,7 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
           updatedWaiter = found;
         }
       }
-      set({ waiters: items, waiter: updatedWaiter });
+      set({ waiters: items, waiter: updatedWaiter, waitersLoaded: true });
     });
   },
 
@@ -329,6 +323,40 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
       }
 
       set({ orders: items });
+    });
+  },
+
+  listenToTables: () => {
+    const tablesCol = collection(db, 'tables');
+    return onSnapshot(tablesCol, (snapshot) => {
+      const items: ActiveTable[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        items.push({
+          id: data.id,
+          number: data.number,
+          capacity: data.capacity,
+          status: data.status,
+          assignedWaiterId: data.assignedWaiterId || undefined
+        });
+      });
+      items.sort((a, b) => a.number - b.number);
+      set({ tables: items });
+    });
+  },
+
+  listenToNotifications: () => {
+    const notificationsCol = collection(db, 'notifications');
+    return onSnapshot(notificationsCol, (snapshot) => {
+      const items: WaiterNotification[] = [];
+      snapshot.forEach((doc) => {
+        items.push(doc.data() as WaiterNotification);
+      });
+      items.sort((a, b) => {
+        if (a.read === b.read) return 0;
+        return a.read ? 1 : -1;
+      });
+      set({ notifications: items });
     });
   }
 }));

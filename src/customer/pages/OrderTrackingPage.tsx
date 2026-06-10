@@ -19,6 +19,10 @@ export function OrderTrackingPage() {
   const orderId = useOrderStore(state => state.orderId);
 
   const [timeLeft, setTimeLeft] = useState(estimatedTimeMins * 60);
+  const [orderPrice, setOrderPrice] = useState<number | null>(null);
+  const [orderPaymentMethod, setOrderPaymentMethod] = useState<string | null>(null);
+  const [orderPaymentStatus, setOrderPaymentStatus] = useState<string | null>(null);
+  const [firestoreStatus, setFirestoreStatus] = useState<string>('New');
 
   // 1. Firestore Real-Time tracking effect
   useEffect(() => {
@@ -29,15 +33,20 @@ export function OrderTrackingPage() {
         const data = docSnap.data();
         
         let mappedStatus: any = 'Confirmed';
-        if (data.status === 'Preparing') {
+        if (data.status === 'Preparing' || data.status === 'Ready') {
           mappedStatus = 'Preparing';
-        } else if (data.status === 'Ready') {
+        } else if (data.status === 'Picked Up') {
           mappedStatus = 'On The Way';
         } else if (data.status === 'Completed' || data.status === 'Delivered') {
           mappedStatus = 'Delivered';
         }
         
         setStatus(mappedStatus);
+        setFirestoreStatus(data.status);
+
+        if (data.price) setOrderPrice(data.price);
+        if (data.paymentMethod) setOrderPaymentMethod(data.paymentMethod);
+        if (data.paymentStatus) setOrderPaymentStatus(data.paymentStatus);
 
         if (data.completedAt) {
           const secsLeft = Math.max(0, Math.round((data.completedAt - Date.now()) / 1000));
@@ -152,7 +161,7 @@ export function OrderTrackingPage() {
         <p className="mt-6 text-lg font-extrabold text-slate-800 font-poppins">
           {status === 'Delivered' ? 'Enjoy your food! 🍽️' :
            status === 'On The Way' ? 'Waiter is serving your food! 🏃‍♂️' :
-           status === 'Preparing' ? 'Chef is cooking your dish! 🍳' :
+           status === 'Preparing' ? (firestoreStatus === 'Ready' ? 'Food plated, waiting for waiter! 🛎️' : 'Chef is cooking your dish! 🍳') :
            'Order Confirmed & Placed! 📝'}
         </p>
       </div>
@@ -223,6 +232,28 @@ export function OrderTrackingPage() {
           </div>
         </div>
       </div>
+
+      {/* Order Bill Summary */}
+      {orderPrice !== null && (
+        <div className="px-6 mt-6">
+          <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 flex justify-between items-center">
+            <div>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Amount Paid</p>
+              <h3 className="text-xl font-black text-slate-800 font-poppins mt-0.5">₹{orderPrice.toFixed(2)}</h3>
+            </div>
+            <div className="text-right">
+              <span className={`inline-block text-[9.5px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                orderPaymentStatus === 'Paid' 
+                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                  : 'bg-amber-50 text-amber-600 border border-amber-100'
+              }`}>
+                {orderPaymentStatus || 'Paid'}
+              </span>
+              <p className="text-[10px] text-slate-400 font-semibold mt-1">via {orderPaymentMethod?.toUpperCase() || 'GPAY'}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

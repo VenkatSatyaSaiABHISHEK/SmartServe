@@ -37,3 +37,14 @@ export interface AdminNotification {
   time: string;
   read: boolean;
 }
+
+export interface GuestReview {
+  id: string;
+  customerName: string;
+  avatar: string;
+  rating: number;
+  comment: string;
+  date: string;
+  dishName: string;
+}
+

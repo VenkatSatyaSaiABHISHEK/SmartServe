@@ -19,6 +19,8 @@ export interface WaiterOrder {
   status: 'New' | 'Preparing' | 'Ready' | 'Picked Up' | 'Completed' | 'Delivered';
   timeOrdered: string;
   createdAt?: number;
+  paymentStatus?: 'Unpaid' | 'Paid';
+  paymentMethod?: string;
 }
 
 

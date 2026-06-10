@@ -93,12 +93,12 @@ export function DeliveryHistoryPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-slate-500 font-bold">
-                      Bill: <strong className="text-[#0f172a]">${order.price.toFixed(2)}</strong>
+                      Bill: <strong className="text-[#0f172a]">₹{order.price.toFixed(2)}</strong>
                     </span>
                     {tip > 0 && (
                       <span className="text-green-600 bg-green-50 border border-green-100/50 px-2 py-0.5 rounded-full font-bold text-[11.5px] flex items-center gap-0.5 shadow-sm">
                         <Award className="w-3 h-3" />
-                        +${tip.toFixed(2)} Tip
+                        +₹{tip.toFixed(2)} Tip
                       </span>
                     )}
                   </div>

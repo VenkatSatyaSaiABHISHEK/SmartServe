@@ -56,7 +56,7 @@ export function FoodCard({ id, name, price, image }: FoodCardProps) {
             {name}
           </h3>
           <p className="text-[#64748b] font-semibold text-[14px] mt-0.5">
-            ${price.toFixed(2)}
+            ₹{price.toFixed(2)}
           </p>
         </div>
       </div>

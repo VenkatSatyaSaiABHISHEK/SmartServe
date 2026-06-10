@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useWaiterStore } from '../store/useWaiterStore';
-import { startWaiterSimulation, stopWaiterSimulation } from '../services/firebase';
 import { 
   LayoutDashboard, ClipboardList, Grid, History, TrendingUp, User, Bell, LogOut
 } from 'lucide-react';
@@ -27,12 +26,6 @@ export function WaiterLayout() {
       navigate('/waiter/login');
     }
   }, [waiter, navigate]);
-
-  // Start simulation on mount, stop on unmount
-  useEffect(() => {
-    startWaiterSimulation();
-    return () => stopWaiterSimulation();
-  }, []);
 
   // Monitor notifications to display floating toast alerts
   useEffect(() => {
@@ -84,44 +77,27 @@ export function WaiterLayout() {
       </AnimatePresence>
 
       {/* Top Header */}
-      <div className="bg-white border-b border-[#f1f5f9] px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-[0_2px_10px_rgba(0,0,0,0.01)]">
-        <div className="flex items-center gap-3">
-          <Link to="/waiter/profile" className="relative cursor-pointer">
-            <img src={waiter.avatar} alt={waiter.name} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm" />
-            <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-              waiter.onlineStatus ? 'bg-green-500' : 'bg-slate-300'
-            }`} />
-          </Link>
-          <div>
-            <h4 className="font-bold text-[#0f172a] text-[15px] leading-tight">{waiter.name}</h4>
-            <button 
-              onClick={toggleOnlineStatus}
-              className={`text-[11px] font-bold tracking-wide uppercase mt-0.5 flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity ${
-                waiter.onlineStatus ? 'text-green-600' : 'text-slate-500'
-              }`}
-            >
-              <span>{waiter.onlineStatus ? '● Active' : '○ Offline'}</span>
-            </button>
-          </div>
+      <div className="bg-white/85 backdrop-blur-md border-b border-slate-100 px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-[0_2px_10px_rgba(0,0,0,0.015)] max-w-md mx-auto w-full">
+        <Link to="/waiter/profile" className="relative cursor-pointer shrink-0">
+          <img src={waiter.avatar} alt={waiter.name} className="w-8 h-8 rounded-full object-cover border border-slate-100 shadow-sm" />
+          <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
+            waiter.onlineStatus ? 'bg-green-500' : 'bg-slate-350'
+          }`} />
+        </Link>
+
+        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center select-none">
+          {waiter.name.toUpperCase()} • {waiter.onlineStatus ? 'ACTIVE' : 'OFFLINE'}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Link 
-            to="/waiter/notifications"
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-50 text-[#1e293b] border border-[#f1f5f9] relative"
-          >
-            <Bell className="w-4.5 h-4.5" />
-            {notifications.filter(n => !n.read).length > 0 && (
-              <span className="absolute top-1.5 right-1.5 bg-[#ef4444] w-2 h-2 rounded-full ring-2 ring-white" />
-            )}
-          </Link>
-          <button 
-            onClick={logout}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-50 text-red-500 border border-[#f1f5f9] cursor-pointer hover:bg-red-50"
-          >
-            <LogOut className="w-4.5 h-4.5" />
-          </button>
-        </div>
+        <Link 
+          to="/waiter/notifications"
+          className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 text-[#1e293b] border border-[#f1f5f9] relative"
+        >
+          <Bell className="w-4 h-4" />
+          {notifications.filter(n => !n.read).length > 0 && (
+            <span className="absolute top-1 right-1 bg-[#ef4444] w-1.5 h-1.5 rounded-full ring-1 ring-white" />
+          )}
+        </Link>
       </div>
 
       {/* Main Content Area */}

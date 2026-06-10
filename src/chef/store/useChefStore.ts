@@ -6,6 +6,7 @@ import { doc, getDoc, collection, onSnapshot, setDoc, updateDoc } from 'firebase
 interface ChefState {
   activeChef: Chef | null;
   chefs: Chef[];
+  chefsLoaded: boolean;
   orders: ChefOrder[];
   login: (chefId: string, pin: string) => Promise<boolean>;
   logout: () => void;
@@ -21,62 +22,20 @@ interface ChefState {
   stopTicking: () => void;
 }
 
-const MOCK_ORDERS: ChefOrder[] = [
-  {
-    id: 'O201',
-    tableNumber: 4,
-    items: [{ name: 'Truffle Mushroom Risotto', quantity: 1 }],
-    prepTimeMins: 15,
-    status: 'Preparing',
-    assignedChefId: 'C1',
-    timeReceived: '10:35 PM',
-    createdAt: Date.now() - 600000,
-    startedPreparingAt: Date.now() - 300000,
-    completedAt: Date.now() + 600000,
-  },
-  {
-    id: 'O202',
-    tableNumber: 2,
-    items: [{ name: 'Wagyu Beef Burger', quantity: 2 }],
-    prepTimeMins: 10,
-    status: 'New',
-    assignedChefId: 'C1',
-    timeReceived: '10:41 PM',
-    createdAt: Date.now() - 300000,
-    startedPreparingAt: null,
-    completedAt: null,
-  },
-  {
-    id: 'O203',
-    tableNumber: 9,
-    items: [{ name: 'Matcha Lava Cake', quantity: 1 }],
-    prepTimeMins: 12,
-    status: 'Ready',
-    assignedChefId: 'C2',
-    timeReceived: '10:28 PM',
-    createdAt: Date.now() - 1200000,
-    startedPreparingAt: Date.now() - 1200000,
-    completedAt: Date.now() - 600000,
-  },
-  {
-    id: 'O204',
-    tableNumber: 3,
-    items: [{ name: 'Salmon Tartare', quantity: 1 }],
-    prepTimeMins: 8,
-    status: 'Completed',
-    assignedChefId: 'C2',
-    timeReceived: '10:05 PM',
-    createdAt: Date.now() - 1800000,
-    startedPreparingAt: Date.now() - 1800000,
-    completedAt: Date.now() - 1300000,
-  }
-];
 
 let tickInterval: any = null;
 
 export const useChefStore = create<ChefState>((set, get) => ({
-  activeChef: null,
+  activeChef: (() => {
+    try {
+      const saved = localStorage.getItem('activeChef');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  })(),
   chefs: [],
+  chefsLoaded: false,
   orders: [],
 
   login: async (chefId, pin) => {
@@ -85,6 +44,7 @@ export const useChefStore = create<ChefState>((set, get) => ({
       if (chefDoc.exists()) {
         const chefData = chefDoc.data() as Chef;
         if (chefData.pin === pin) {
+          localStorage.setItem('activeChef', JSON.stringify(chefData));
           set({ activeChef: chefData });
           return true;
         }
@@ -95,7 +55,10 @@ export const useChefStore = create<ChefState>((set, get) => ({
     return false;
   },
 
-  logout: () => set({ activeChef: null }),
+  logout: () => {
+    localStorage.removeItem('activeChef');
+    set({ activeChef: null });
+  },
 
   getChefActiveLoad: (chefId) => {
     return get().orders.filter(o => 
@@ -248,6 +211,7 @@ export const useChefStore = create<ChefState>((set, get) => ({
     }
   },
 
+
   listenToChefs: () => {
     const chefsCol = collection(db, 'chefs');
     return onSnapshot(chefsCol, (snapshot) => {
@@ -265,28 +229,21 @@ export const useChefStore = create<ChefState>((set, get) => ({
           updatedChef = found;
         }
       }
-      set({ chefs: items, activeChef: updatedChef });
+      set({ chefs: items, activeChef: updatedChef, chefsLoaded: true });
+      get().tickOrdersAndBreaks();
     });
   },
 
   listenToOrders: () => {
     const ordersCol = collection(db, 'orders');
-    let isInitialFetch = true;
-    return onSnapshot(ordersCol, async (snapshot) => {
-      if (snapshot.empty && isInitialFetch) {
-        isInitialFetch = false;
-        // Seed database if empty
-        for (const order of MOCK_ORDERS) {
-          await setDoc(doc(db, 'orders', order.id), order);
-        }
-      } else {
-        const items: ChefOrder[] = [];
-        snapshot.forEach((doc) => {
-          items.push(doc.data() as ChefOrder);
-        });
-        items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        set({ orders: items });
-      }
+    return onSnapshot(ordersCol, (snapshot) => {
+      const items: ChefOrder[] = [];
+      snapshot.forEach((doc) => {
+        items.push(doc.data() as ChefOrder);
+      });
+      items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      set({ orders: items });
+      get().tickOrdersAndBreaks();
     });
   },
 

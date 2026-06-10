@@ -151,16 +151,26 @@ export function OrderDetailsPage() {
           <div className="flex flex-col gap-2.5 text-[13px] text-[#64748b]">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span className="font-semibold text-slate-800">${subtotal.toFixed(2)}</span>
+              <span className="font-semibold text-slate-800">₹{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span>GST (5%)</span>
-              <span className="font-semibold text-slate-800">${gst.toFixed(2)}</span>
+              <span className="font-semibold text-slate-800">₹{gst.toFixed(2)}</span>
             </div>
             <div className="h-[1px] bg-slate-100 w-full my-1.5" />
             <div className="flex justify-between text-[#0f172a] text-[16px] font-extrabold font-poppins">
               <span>Grand Total</span>
-              <span>${order.price.toFixed(2)}</span>
+              <span>₹{order.price.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center mt-3 pt-3 border-t border-dashed border-slate-100">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Payment Status</span>
+              <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                order.paymentStatus === 'Paid'
+                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                  : 'bg-amber-50 text-amber-600 border border-amber-100 animate-pulse'
+              }`}>
+                {order.paymentStatus || 'Unpaid'} ({order.paymentMethod || 'later'})
+              </span>
             </div>
           </div>
         </div>

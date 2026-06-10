@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminStore } from '../store/useAdminStore';
 import { ShieldAlert, KeyRound, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { db } from '../../firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
 
 export function LoginPage() {
   const { login } = useAdminStore();
@@ -11,21 +13,35 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (username === 'admin' && password === '1234') {
-      login();
-      navigate('/admin');
-    } else {
-      setError('Invalid system administrator credentials. Try admin / 1234');
-    }
-  };
 
-  const handleQuickLogin = () => {
-    setUsername('admin');
-    setPassword('1234');
-    login();
-    navigate('/admin');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    try {
+      const cleanedUsername = username.trim().toLowerCase();
+      // Try to fetch the system admin document
+      const adminDocRef = doc(db, 'system_admins', cleanedUsername);
+      const adminDoc = await getDoc(adminDocRef);
+      
+      if (adminDoc.exists()) {
+        const adminData = adminDoc.data();
+        if (adminData.password === password || adminData.pin === password) {
+          login();
+          navigate('/admin');
+          return;
+        } else {
+          setError('Invalid system administrator passcode PIN.');
+          return;
+        }
+      } else {
+        setError('Invalid system administrator credentials. Real database accounts only.');
+      }
+    } catch (err: any) {
+      console.error("Error during admin authentication:", err);
+      setError('Connection error occurred while logging in.');
+    }
   };
 
   return (
@@ -88,18 +104,7 @@ export function LoginPage() {
             </button>
           </form>
 
-          {/* Quick-link Autofill helper */}
-          <div className="w-full mt-6 pt-5.5 border-t border-slate-50 text-center">
-            <button
-              onClick={handleQuickLogin}
-              className="text-[11px] font-black text-indigo-600 hover:text-indigo-800 underline decoration-2 cursor-pointer uppercase tracking-wider"
-            >
-              Demo Autofill & Authenticate
-            </button>
-            <p className="text-[9.5px] font-bold text-slate-400 mt-2 uppercase tracking-widest">
-              Standard User: admin & Pin: 1234
-            </p>
-          </div>
+
 
         </div>
       </div>

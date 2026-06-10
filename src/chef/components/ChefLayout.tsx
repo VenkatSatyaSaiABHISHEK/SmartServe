@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useChefStore } from '../store/useChefStore';
-import { startChefSimulation, stopChefSimulation } from '../services/firebase';
 import { 
-  LayoutDashboard, ClipboardList, Flame, CheckCircle2, History, TrendingUp, User, LogOut, Menu, X, Bell
+  LayoutDashboard, ClipboardList, Flame, CheckCircle2, History, TrendingUp, User, LogOut, Menu, X, Bell, Tv
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -30,11 +29,7 @@ export function ChefLayout() {
     }
   }, [activeChef, navigate]);
 
-  // Start simulation on mount, stop on unmount
-  useEffect(() => {
-    startChefSimulation();
-    return () => stopChefSimulation();
-  }, []);
+
 
   // Monitor incoming orders to show a top alert banner
   useEffect(() => {
@@ -60,6 +55,7 @@ export function ChefLayout() {
   const menuItems = [
     { path: '/chef', label: 'Workload Dashboard', icon: LayoutDashboard },
     { path: '/chef/preparing', label: 'Hands-Free Terminal', icon: Flame, badge: totalActiveCount, badgeColor: 'bg-orange-500 animate-pulse' },
+    { path: '/admin/kds', label: 'KDS TV Mirror', icon: Tv },
     { path: '/chef/history', label: 'Order History', icon: History },
     { path: '/chef/performance', label: 'Analytics', icon: TrendingUp },
     { path: '/chef/profile', label: 'Station Profile', icon: User },

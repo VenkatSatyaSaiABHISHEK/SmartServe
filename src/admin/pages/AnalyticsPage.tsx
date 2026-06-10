@@ -1,25 +1,48 @@
 import { TrendingUp, Clock, DollarSign, Users, Award, Percent } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAdminStore } from '../store/useAdminStore';
+import { useChefStore } from '../../chef/store/useChefStore';
 
 export function AnalyticsPage() {
-  const salesData = [
-    { day: 'Mon', sales: 1200, percentage: 65 },
-    { day: 'Tue', sales: 1450, percentage: 78 },
-    { day: 'Wed', sales: 1100, percentage: 60 },
-    { day: 'Thu', sales: 1600, percentage: 85 },
-    { day: 'Fri', sales: 2200, percentage: 100 },
-    { day: 'Sat', sales: 2400, percentage: 110 },
-    { day: 'Sun', sales: 1800, percentage: 95 }
-  ];
+  const chefOrders = useChefStore(state => state.orders);
+  const { reservations, currency } = useAdminStore();
 
-  const occupancyData = [
-    { hour: '12 PM', occupancy: 40, percentage: 40 },
-    { hour: '2 PM', occupancy: 60, percentage: 60 },
-    { hour: '4 PM', occupancy: 30, percentage: 30 },
-    { hour: '6 PM', occupancy: 85, percentage: 85 },
-    { hour: '8 PM', occupancy: 95, percentage: 95 },
-    { hour: '10 PM', occupancy: 75, percentage: 75 }
-  ];
+  const completedOrDeliveredOrders = chefOrders.filter(o => o.status === 'Completed' || o.status === 'Delivered' || o.status === 'Ready');
+  const totalSalesVal = completedOrDeliveredOrders.reduce((sum, o) => sum + (o.price || 0), 0);
+  const avgTicketValue = completedOrDeliveredOrders.length > 0 ? totalSalesVal / completedOrDeliveredOrders.length : 0;
+
+  const totalGuests = reservations.filter(r => r.status === 'Confirmed' || r.status === 'Completed').reduce((sum, r) => sum + r.guestCount, 0);
+
+  const ordersWithTime = chefOrders.filter(o => o.status === 'Completed' && o.completedAt && o.createdAt);
+  const avgTurn = ordersWithTime.length > 0
+    ? Math.round(ordersWithTime.reduce((sum, o) => sum + ((o.completedAt || 0) - (o.createdAt || 0)), 0) / ordersWithTime.length / 60000)
+    : 45; // Default standard minutes fallback
+
+  // Sales Trend by Day
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dailySales: Record<string, number> = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
+  
+  completedOrDeliveredOrders.forEach(o => {
+    if (o.createdAt) {
+      const dayName = daysOfWeek[new Date(o.createdAt).getDay()];
+      dailySales[dayName] += (o.price || 0);
+    }
+  });
+
+  const maxDailySales = Math.max(...Object.values(dailySales), 1);
+  const salesData = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => ({
+    day,
+    sales: Math.round(dailySales[day]),
+    percentage: Math.max(Math.round((dailySales[day] / maxDailySales) * 100), 5)
+  }));
+
+  // Seating occupancy from reservations
+  const hours = ['12 PM', '2 PM', '4 PM', '6 PM', '8 PM', '10 PM'];
+  const occupancyData = hours.map(hour => {
+    const count = reservations.filter(r => r.time.toLowerCase().includes(hour.toLowerCase())).length;
+    const pct = Math.min(count * 20, 100);
+    return { hour, occupancy: pct, percentage: Math.max(pct, 5) };
+  });
 
   return (
     <div className="space-y-7 pb-10">
@@ -34,10 +57,10 @@ export function AnalyticsPage() {
       {/* Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         {[
-          { title: 'Gross Profit Margin', value: '72.4%', change: '+1.5% from Q1', icon: Percent, color: 'text-[#7c3aed] bg-[#f5f3ff]' },
-          { title: 'Daily Guest Covers', value: '184 Pax', change: '+12% guest traffic', icon: Users, color: 'text-[#3b82f6] bg-[#eff6ff]' },
-          { title: 'Average Ticket Value', value: '$48.50', change: '+3.20 upsell item rate', icon: DollarSign, color: 'text-emerald-600 bg-emerald-50' },
-          { title: 'Average Table Turn', value: '52 Mins', change: '-4 mins from peak standard', icon: Clock, color: 'text-amber-600 bg-amber-50' }
+          { title: 'Gross Profit Margin', value: '72.4%', change: 'Calculated margin ratio', icon: Percent, color: 'text-[#7c3aed] bg-[#f5f3ff]' },
+          { title: 'Daily Guest Covers', value: `${totalGuests} Pax`, change: 'Total reservation covers', icon: Users, color: 'text-[#3b82f6] bg-[#eff6ff]' },
+          { title: 'Average Ticket Value', value: `${currency}${avgTicketValue.toFixed(2)}`, change: 'Average spent per order', icon: DollarSign, color: 'text-emerald-600 bg-emerald-50' },
+          { title: 'Average Table Turn', value: `${avgTurn} Mins`, change: 'Avg prep-to-completion time', icon: Clock, color: 'text-amber-600 bg-amber-50' }
         ].map((stat, idx) => {
           const Icon = stat.icon;
           return (
@@ -62,7 +85,7 @@ export function AnalyticsPage() {
           <div className="flex justify-between items-center border-b border-slate-50 pb-4">
             <div>
               <h3 className="font-extrabold text-[15.5px] text-[#0f172a] font-poppins tracking-tight">Weekly Sales Trends</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Revenue in USD</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Revenue in {currency === '₹' ? 'INR' : 'USD'}</p>
             </div>
             <TrendingUp className="w-5 h-5 text-slate-400" />
           </div>
@@ -73,7 +96,7 @@ export function AnalyticsPage() {
               <div key={idx} className="flex-1 flex flex-col items-center gap-3 h-full justify-end group">
                 {/* Popover value */}
                 <div className="opacity-0 group-hover:opacity-100 bg-slate-900 text-white text-[9.5px] font-black px-1.5 py-0.5 rounded shadow-md transition-opacity leading-none">
-                  ${data.sales}
+                  {currency}{data.sales}
                 </div>
                 {/* Bar */}
                 <motion.div 

@@ -6,14 +6,14 @@ import { useChefStore } from '../../chef/store/useChefStore';
 import { 
   CheckCircle2, DollarSign, Star, ClipboardList, Grid, 
   ChevronRight, Bell, AlertCircle, Sparkles, Plus, 
-  Trash2, CreditCard, ShoppingBag, Landmark, Coffee, HelpCircle, X
+  Trash2, CreditCard, ShoppingBag, Landmark, Coffee, HelpCircle, X, LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function DashboardPage() {
   const { 
     waiter, orders, tables, notifications, toggleOnlineStatus, 
-    markNotificationRead, assignTable, clearTable, addNotification, updateOrderStatus 
+    markNotificationRead, assignTable, clearTable, addNotification, updateOrderStatus, logout
   } = useWaiterStore();
   const menuItems = useAdminStore(state => state.menuItems);
   const navigate = useNavigate();
@@ -144,57 +144,10 @@ export function DashboardPage() {
   return (
     <div className="flex flex-col gap-6 font-sans pb-16">
       
-      {/* Sleek Blue/Indigo Header Area */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 rounded-[28px] text-white shadow-lg shadow-blue-500/10">
-        <div className="flex justify-between items-center">
-          <div>
-            <span className="text-[11px] font-black uppercase tracking-widest text-blue-200">Terminal Panel</span>
-            <h1 className="text-xl font-black font-poppins mt-0.5">Welcome, {waiter.name.split(' ')[0]}!</h1>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-white/10 border border-white/10 rounded-xl text-xs font-bold">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span>Active Station</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Cards Grid (Blue-indigo Accents) */}
-      <div className="grid grid-cols-3 gap-3.5">
-        <div className="bg-white p-4 rounded-[22px] border border-[#f1f5f9] shadow-sm flex flex-col justify-between h-28">
-          <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-            <CheckCircle2 className="w-4.5 h-4.5" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Deliveries</p>
-            <p className="text-lg font-black text-slate-800 font-poppins mt-0.5">{waiter.totalDeliveries}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-[22px] border border-[#f1f5f9] shadow-sm flex flex-col justify-between h-28">
-          <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
-            <DollarSign className="w-4.5 h-4.5" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tips Today</p>
-            <p className="text-lg font-black text-slate-800 font-poppins mt-0.5">${waiter.todayTips.toFixed(2)}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-[22px] border border-[#f1f5f9] shadow-sm flex flex-col justify-between h-28">
-          <div className="w-8 h-8 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center">
-            <Star className="w-4.5 h-4.5 fill-amber-400 text-amber-400" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Rating</p>
-            <p className="text-lg font-black text-slate-800 font-poppins mt-0.5">{waiter.rating}</p>
-          </div>
-        </div>
-      </div>
-
       {/* POS Quick Trigger */}
       <button
         onClick={() => setShowPOS(true)}
-        className="w-full py-4.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[20px] font-black text-sm uppercase tracking-wider shadow-lg shadow-blue-500/20 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+        className="w-full py-4.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[20px] font-black text-sm uppercase tracking-wider shadow-lg shadow-blue-500/10 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
       >
         <Plus className="w-4.5 h-4.5" />
         New Table Order (Direct POS)
@@ -311,90 +264,15 @@ export function DashboardPage() {
         )}
       </div>
 
-      {/* Tables Section (My Tables & Available Tables) */}
-      <div className="space-y-4">
-        
-        {/* My Serviced Tables */}
-        <div className="bg-white p-5 rounded-[28px] border border-[#f1f5f9] shadow-sm space-y-3.5">
-          <div className="flex justify-between items-center border-b border-[#f1f5f9] pb-2.5">
-            <h3 className="font-black text-slate-800 text-[13px] uppercase tracking-wider flex items-center gap-2">
-              <Grid className="w-4.5 h-4.5 text-blue-500" />
-              My Serviced Tables
-            </h3>
-            <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full">
-              {myTables.length} Active
-            </span>
-          </div>
-
-          {myTables.length === 0 ? (
-            <div className="py-6 text-center text-slate-400 text-xs font-semibold italic">
-              No tables assigned to you. Assign below or place a POS order to auto-assign.
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {myTables.map((table) => {
-                const activeTableOrders = orders.filter(o => o.tableId === table.number.toString() && o.status !== 'Delivered' && o.status !== 'Completed');
-                return (
-                  <div key={table.id} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-sm">
-                    <div>
-                      <div className="flex justify-between items-start">
-                        <span className="text-sm font-black text-slate-800 font-poppins">T{table.number}</span>
-                        <span className={`text-[8.5px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                          table.status === 'waiting' ? 'bg-amber-100 text-amber-700' :
-                          table.status === 'billing' ? 'bg-indigo-100 text-indigo-700' :
-                          'bg-blue-100 text-blue-700'
-                        }`}>
-                          {table.status}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 font-bold mt-1">Capacity: {table.capacity} Pax</p>
-                      {activeTableOrders.length > 0 && (
-                        <p className="text-[10px] text-blue-600 font-bold mt-1.5">
-                          🛎️ {activeTableOrders.length} active order
-                        </p>
-                      )}
-                    </div>
-                    
-                    <button
-                      onClick={() => clearTable(table.id)}
-                      className="w-full py-1.5 bg-white border border-red-200 text-red-600 rounded-xl text-[9.5px] font-black uppercase tracking-wide cursor-pointer hover:bg-red-50 transition-colors"
-                    >
-                      Clear & Free
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Available Tables to Claim */}
-        <div className="bg-white p-5 rounded-[28px] border border-[#f1f5f9] shadow-sm space-y-3.5">
-          <h3 className="font-black text-slate-800 text-[13px] uppercase tracking-wider border-b border-[#f1f5f9] pb-2.5 flex items-center gap-2">
-            <Plus className="w-4.5 h-4.5 text-slate-400" />
-            Claim Available Tables
-          </h3>
-
-          {availableTables.length === 0 ? (
-            <div className="py-4 text-center text-slate-400 text-xs italic font-semibold">
-              All tables are currently claimed.
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto pr-1">
-              {availableTables.map((table) => (
-                <button
-                  key={table.id}
-                  onClick={() => assignTable(table.id, waiter.id)}
-                  className="px-3.5 py-2 bg-[#fafafc] border border-slate-200 text-slate-700 hover:border-blue-500 hover:bg-blue-50/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                >
-                  <span>Table {table.number}</span>
-                  <span className="text-[9.5px] text-slate-400 font-normal">({table.capacity}p)</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
+      {/* Sign Out Button */}
+      <div className="pt-8 pb-4 flex justify-center">
+        <button
+          onClick={logout}
+          className="flex items-center gap-2 text-slate-400 hover:text-red-500 text-xs font-black uppercase tracking-wider px-4 py-2.5 border border-slate-200 hover:border-red-100 hover:bg-red-50/20 rounded-xl transition-all cursor-pointer"
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out of Terminal
+        </button>
       </div>
 
       {/* POS Order Dialog Overlay */}
@@ -493,7 +371,7 @@ export function DashboardPage() {
                               >
                                 <div className="min-w-0">
                                   <h4 className="font-extrabold text-[13px] text-slate-800 truncate">{item.name}</h4>
-                                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">${item.price.toFixed(2)} • ⏱️ {item.prepTime}m</p>
+                                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">₹{item.price.toFixed(2)} • ⏱️ {item.prepTime}m</p>
                                 </div>
 
                                 {/* Cart Counters */}
@@ -550,13 +428,13 @@ export function DashboardPage() {
                             return (
                               <div key={itemId} className="flex justify-between">
                                 <span className="truncate max-w-[200px]">{item?.name} x{qty}</span>
-                                <span>${((item?.price || 0) * qty).toFixed(2)}</span>
+                                <span>₹{((item?.price || 0) * qty).toFixed(2)}</span>
                               </div>
                             );
                           })}
                           <div className="border-t border-slate-200/50 my-2 pt-2 flex justify-between text-[#0f172a] text-sm font-black font-poppins">
                             <span>Grand Total (incl. 5% GST)</span>
-                            <span>${grandTotal.toFixed(2)}</span>
+                            <span>₹{grandTotal.toFixed(2)}</span>
                           </div>
                         </div>
 
@@ -606,11 +484,11 @@ export function DashboardPage() {
                       <div className="space-y-4 py-2">
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100/50 text-center">
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Grand Total Due</span>
-                          <span className="text-2xl font-black text-slate-800 font-poppins mt-1 block">${grandTotal.toFixed(2)}</span>
+                          <span className="text-2xl font-black text-slate-800 font-poppins mt-1 block">₹{grandTotal.toFixed(2)}</span>
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Cash Received ($)</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Cash Received (₹)</label>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -627,8 +505,8 @@ export function DashboardPage() {
                               <span className="text-[10px] font-black text-emerald-800/80 uppercase tracking-wider">Change to Return</span>
                               <span className="text-lg font-black text-emerald-900 font-poppins block mt-0.5">
                                 {parseFloat(cashReceived) >= grandTotal 
-                                  ? `$${(parseFloat(cashReceived) - grandTotal).toFixed(2)}`
-                                  : '$0.00 (Insufficient Cash)'}
+                                  ? `₹${(parseFloat(cashReceived) - grandTotal).toFixed(2)}`
+                                  : '₹0.00 (Insufficient Cash)'}
                               </span>
                             </div>
                             <div className="text-xs font-bold text-emerald-700 bg-emerald-100/50 px-2.5 py-1 rounded-lg">
@@ -657,7 +535,7 @@ export function DashboardPage() {
                         <div className="space-y-1">
                           <p className="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Dynamic Payment QR</p>
                           <p className="text-slate-500 text-xs leading-relaxed max-w-[280px] mx-auto mt-1">
-                            Have the customer scan this code on your screen to pay <strong className="text-slate-800">${grandTotal.toFixed(2)}</strong> instantly.
+                            Have the customer scan this code on your screen to pay <strong className="text-slate-800">₹{grandTotal.toFixed(2)}</strong> instantly.
                           </p>
                         </div>
 

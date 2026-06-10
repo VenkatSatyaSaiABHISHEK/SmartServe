@@ -21,14 +21,31 @@ export function HomePage() {
   const setDietPreference = useCartStore(state => state.setDietPreference);
   const navigate = useNavigate();
 
+  const currentHour = new Date().getHours();
+  let currentSlot: 'morning' | 'evening' | 'night' = 'morning';
+  if (currentHour >= 5 && currentHour < 12) {
+    currentSlot = 'morning';
+  } else if (currentHour >= 12 && currentHour < 19) {
+    currentSlot = 'evening';
+  } else {
+    currentSlot = 'night';
+  }
+
+  const slotInfo = {
+    morning: { label: 'Morning Menu Active 🌅', color: 'text-amber-700 bg-amber-50 border-amber-100/60' },
+    evening: { label: 'Evening Menu Active 🌆', color: 'text-indigo-700 bg-indigo-50 border-indigo-100/60' },
+    night: { label: 'Night Menu Active 🌌', color: 'text-purple-700 bg-purple-50 border-purple-100/60' }
+  };
+
   const gst = cartTotal * 0.05; // 5% GST
   const grandTotal = cartTotal + gst;
 
-  // Filter foods by both category and dietary preference
+  // Filter foods by category, dietary preference, and time-of-day slot
   const filteredFoods = MOCK_FOODS.filter(food => {
+    const matchesSlot = !food.slot || food.slot === 'all' || food.slot === currentSlot;
     const matchesCategory = selectedCategory === 'All' || food.category === selectedCategory;
     const matchesDiet = dietPreference === 'all' || food.type === dietPreference;
-    return matchesCategory && matchesDiet;
+    return matchesSlot && matchesCategory && matchesDiet;
   });
 
   return (
@@ -45,6 +62,13 @@ export function HomePage() {
           What would <br />
           you like today?
         </h1>
+      </div>
+
+      {/* Time-of-Day Active Slot Banner */}
+      <div className="px-6 mb-3 flex gap-2">
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider ${slotInfo[currentSlot].color}`}>
+          <span>{slotInfo[currentSlot].label}</span>
+        </div>
       </div>
 
       {/* Diet Preference Status Banner */}
@@ -126,7 +150,7 @@ export function HomePage() {
                   <img src={item.image} alt={item.name} className="w-16 h-16 rounded-2xl object-cover bg-slate-100" />
                   <div className="flex-1">
                     <h4 className="font-semibold text-slate-800 line-clamp-1">{item.name}</h4>
-                    <p className="text-slate-500 font-medium">${item.price.toFixed(2)}</p>
+                    <p className="text-slate-500 font-medium">₹{item.price.toFixed(2)}</p>
                   </div>
                   <div className="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-full">
                     <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="text-slate-600">-</button>
@@ -142,15 +166,15 @@ export function HomePage() {
             <div className="flex flex-col gap-3">
               <div className="flex justify-between text-slate-500">
                 <span>Subtotal</span>
-                <span className="font-medium">${cartTotal.toFixed(2)}</span>
+                <span className="font-medium">₹{cartTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-500">
                 <span>GST (5%)</span>
-                <span className="font-medium">${gst.toFixed(2)}</span>
+                <span className="font-medium">₹{gst.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-xl font-bold text-slate-800 mt-2">
                 <span>Total</span>
-                <span>${grandTotal.toFixed(2)}</span>
+                <span>₹{grandTotal.toFixed(2)}</span>
               </div>
             </div>
 

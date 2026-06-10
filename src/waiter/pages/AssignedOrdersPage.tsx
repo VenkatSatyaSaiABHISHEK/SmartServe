@@ -102,7 +102,7 @@ export function AssignedOrdersPage() {
                     </div>
 
                     <div className="flex items-center justify-between mt-1">
-                      <p className="text-[12px] font-bold text-[#64748b]">Total: <strong className="text-[#0f172a] text-[15px] font-black font-poppins">${order.price.toFixed(2)}</strong></p>
+                      <p className="text-[12px] font-bold text-[#64748b]">Total: <strong className="text-[#0f172a] text-[15px] font-black font-poppins">₹{order.price.toFixed(2)}</strong></p>
                       <button 
                         onClick={() => updateOrderStatus(order.id, 'Picked Up')}
                         className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider shadow-md shadow-blue-500/10 active:scale-95 transition-all cursor-pointer"
@@ -171,7 +171,7 @@ export function AssignedOrdersPage() {
                     </div>
 
                     <div className="flex items-center justify-between mt-1">
-                      <p className="text-[12px] font-bold text-[#64748b]">Total: <strong className="text-[#0f172a] text-[15px] font-black font-poppins">${order.price.toFixed(2)}</strong></p>
+                      <p className="text-[12px] font-bold text-[#64748b]">Total: <strong className="text-[#0f172a] text-[15px] font-black font-poppins">₹{order.price.toFixed(2)}</strong></p>
                       
                       {order.status === 'Preparing' ? (
                         <button 

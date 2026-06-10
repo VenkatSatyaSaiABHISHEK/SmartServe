@@ -7,7 +7,7 @@ import { motion, useAnimation } from 'framer-motion';
 export function LoginPage() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
-  const { chefs, activeChef, login, listenToChefs } = useChefStore();
+  const { chefs, activeChef, login, listenToChefs, chefsLoaded } = useChefStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const chefIdParam = searchParams.get('id');
@@ -96,9 +96,12 @@ export function LoginPage() {
             {activeChefId ? 'Back to Roster' : 'Customer UI'}
           </span>
         </button>
-        <span className="text-[11px] font-bold text-slate-400 bg-white border border-[#f1f5f9] px-3.5 py-1.5 rounded-full shadow-sm">
-          KITCHEN DISPLAY TERMINAL
-        </span>
+        <button 
+          onClick={() => navigate('/admin/kds')}
+          className="text-[11px] font-black text-purple-600 bg-white border border-[#f1f5f9] px-4 py-2 rounded-full shadow-sm hover:bg-slate-50 cursor-pointer transition-all hover:scale-102 active:scale-98 uppercase tracking-wider"
+        >
+          Kitchen Display Terminal
+        </button>
       </div>
 
       {currentChef ? (
@@ -217,20 +220,47 @@ export function LoginPage() {
           </div>
 
           {/* Chef Selection Grid */}
-          <motion.div 
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6.5 w-full"
-          >
-            {chefs.map((chef) => {
+          {!chefsLoaded ? (
+            <div className="text-center py-6 space-y-3">
+              <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs font-semibold text-slate-400">Loading kitchen staff roster...</p>
+            </div>
+          ) : chefs.length === 0 ? (
+            <div className="text-center py-10 px-6 bg-white border border-[#f1f5f9] rounded-[28px] shadow-sm max-w-md w-full flex flex-col items-center gap-4 mt-6">
+              <div className="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center text-purple-500">
+                <ChefHat className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-[15px] text-[#0f172a] font-poppins">No Registered Chefs</h3>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-xs mx-auto">
+                  There are no kitchen chefs registered in the system yet. Please register staff in the Admin Portal.
+                </p>
+              </div>
+              <button 
+                onClick={() => navigate('/admin/login')}
+                className="mt-2 bg-gradient-to-r from-purple-600 to-indigo-650 text-white font-bold text-xs px-5 py-2.5 rounded-xl uppercase tracking-wider shadow hover:opacity-95 cursor-pointer active:scale-98 transition-all"
+              >
+                Go to Admin Portal
+              </button>
+            </div>
+          ) : (
+            <motion.div 
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-6.5 w-full"
+            >
+              {chefs.map((chef) => {
               const activeLoad = useChefStore.getState().getChefActiveLoad(chef.id);
               return (
                 <motion.button
                   key={chef.id}
                   whileHover={{ y: -8, scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setActiveChefId(chef.id)}
+                  onClick={() => {
+                    useChefStore.setState({ activeChef: chef });
+                    navigate('/chef/preparing');
+                  }}
                   className="bg-white border border-[#f1f5f9] rounded-[28px] p-6.5 text-left shadow-lg shadow-slate-100/50 hover:shadow-xl hover:shadow-purple-100/40 hover:border-purple-300/50 transition-all flex flex-col items-center cursor-pointer group w-full"
                 >
                   <div className="relative">
@@ -280,6 +310,7 @@ export function LoginPage() {
               );
             })}
           </motion.div>
+          )}
         </div>
       )}
 

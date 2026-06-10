@@ -7,24 +7,52 @@ import {
 import { motion } from 'framer-motion';
 
 export function DashboardPage() {
-  const { menuItems, reservations, notifications } = useAdminStore();
+  const { menuItems, reservations, notifications, currency } = useAdminStore();
   const chefOrders = useChefStore(state => state.orders);
 
-  // Financial Metrics calculations
-  const totalSalesVal = 14285.50;
-  const salesToday = 1432.20;
-  const salesThisWeek = 9820.80;
-  
-  // Total orders completed
-  const completedOrders = chefOrders.filter(o => o.status === 'Completed').length;
-  
-  // Popular items calculated from menu items & mock percentages
-  const popularDishes = [
-    { name: 'Truffle Mushroom Risotto', count: 148, revenue: 3698.52, percentage: 92 },
-    { name: 'Wagyu Beef Burger', count: 124, revenue: 3658.00, percentage: 80 },
-    { name: 'Hyderabadi Dum Biryani', count: 110, revenue: 2420.00, percentage: 71 },
-    { name: 'Artisan Burrata', count: 85, revenue: 1402.50, percentage: 55 }
-  ];
+  const completedOrDeliveredOrders = chefOrders.filter(o => o.status === 'Completed' || o.status === 'Delivered' || o.status === 'Ready');
+  const completedOrders = chefOrders.filter(o => o.status === 'Completed' || o.status === 'Delivered').length;
+
+  const totalSalesVal = completedOrDeliveredOrders.reduce((sum, o) => sum + (o.price || 0), 0);
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfTodayMs = startOfToday.getTime();
+
+  const salesToday = completedOrDeliveredOrders
+    .filter(o => (o.createdAt || 0) >= startOfTodayMs)
+    .reduce((sum, o) => sum + (o.price || 0), 0);
+
+  // Calculate popular dishes dynamically from completedOrDeliveredOrders
+  const itemCounts: Record<string, { count: number; revenue: number }> = {};
+  completedOrDeliveredOrders.forEach(order => {
+    order.items.forEach(item => {
+      const menuItem = menuItems.find(m => m.name === item.name);
+      const price = menuItem ? menuItem.price : (order.price ? order.price / order.items.length : 15.0);
+      
+      if (!itemCounts[item.name]) {
+        itemCounts[item.name] = { count: 0, revenue: 0 };
+      }
+      itemCounts[item.name].count += item.quantity;
+      itemCounts[item.name].revenue += price * item.quantity;
+    });
+  });
+
+  const sortedItems = Object.entries(itemCounts)
+    .map(([name, data]) => ({
+      name,
+      count: data.count,
+      revenue: data.revenue,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const maxCount = sortedItems.length > 0 ? sortedItems[0].count : 1;
+  const popularDishes = sortedItems.slice(0, 4).map(item => ({
+    name: item.name,
+    count: item.count,
+    revenue: item.revenue,
+    percentage: Math.round((item.count / maxCount) * 100)
+  }));
 
   return (
     <div className="space-y-7 pb-10">
@@ -42,9 +70,9 @@ export function DashboardPage() {
       {/* Main Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {[
-          { title: 'Total Revenue', value: `$${totalSalesVal.toLocaleString()}`, change: '+14% from last month', icon: DollarSign, color: 'text-purple-600', bg: 'bg-purple-50' },
-          { title: 'Sales Today', value: `$${salesToday.toLocaleString()}`, change: '+4.2% since morning', icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { title: 'Orders Cooked Today', value: completedOrders, change: `${chefOrders.filter(o => o.status !== 'Completed').length} orders in progress`, icon: Utensils, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { title: 'Total Revenue', value: `${currency}${totalSalesVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, change: 'Accumulated from completed bills', icon: DollarSign, color: 'text-purple-600', bg: 'bg-purple-50' },
+          { title: 'Sales Today', value: `${currency}${salesToday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, change: 'Today\'s ledger total', icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { title: 'Orders Cooked Today', value: completedOrders, change: `${chefOrders.filter(o => o.status !== 'Completed' && o.status !== 'Delivered').length} orders in progress`, icon: Utensils, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { title: 'Pending Bookings', value: reservations.filter(r => r.status === 'Pending').length, change: 'For tomorrow/weekend', icon: Calendar, color: 'text-amber-600', bg: 'bg-amber-50' }
         ].map((item, idx) => {
           const Icon = item.icon;
@@ -76,25 +104,31 @@ export function DashboardPage() {
           </div>
 
           <div className="space-y-5">
-            {popularDishes.map((dish, idx) => (
-              <div key={idx} className="space-y-2">
-                <div className="flex justify-between items-center text-xs font-bold text-slate-600">
-                  <span className="text-[#0f172a] truncate max-w-[240px]">{dish.name}</span>
-                  <div className="text-right">
-                    <span className="text-[#0f172a] font-black">{dish.count} orders </span>
-                    <span className="text-slate-400">(${dish.revenue.toFixed(2)})</span>
+            {popularDishes.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 font-bold text-xs">
+                No orders processed yet. Popularity index will be calculated from live checkouts.
+              </div>
+            ) : (
+              popularDishes.map((dish, idx) => (
+                <div key={idx} className="space-y-2">
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-600">
+                    <span className="text-[#0f172a] truncate max-w-[240px]">{dish.name}</span>
+                    <div className="text-right">
+                      <span className="text-[#0f172a] font-black">{dish.count} orders </span>
+                      <span className="text-slate-400">({currency}{dish.revenue.toFixed(2)})</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-slate-50 h-3 rounded-full overflow-hidden border border-[#f1f5f9]">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${dish.percentage}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                      className="h-full bg-gradient-to-r from-slate-900 to-slate-700 rounded-full"
+                    />
                   </div>
                 </div>
-                <div className="w-full bg-slate-50 h-3 rounded-full overflow-hidden border border-[#f1f5f9]">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${dish.percentage}%` }}
-                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                    className="h-full bg-gradient-to-r from-slate-900 to-slate-700 rounded-full"
-                  />
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 

@@ -165,6 +165,11 @@ export const router = createBrowserRouter([
         path: "admin/login",
         element: <AdminLoginPage />,
       },
+      // Standalone TV KDS Console Screen (No Sidebar or Top Header)
+      {
+        path: "admin/kds",
+        element: <AdminKitchenDisplayPage />,
+      },
       // Admin Layout with Sidebar
       {
         path: "admin",
@@ -197,10 +202,6 @@ export const router = createBrowserRouter([
           {
             path: "chefs",
             element: <AdminChefManagementPage />,
-          },
-          {
-            path: "kds",
-            element: <AdminKitchenDisplayPage />,
           },
           {
             path: "cameras",

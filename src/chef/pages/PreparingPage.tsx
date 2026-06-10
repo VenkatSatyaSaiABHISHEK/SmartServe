@@ -105,39 +105,39 @@ export function PreparingPage() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -15 }}
-                className="bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-950 text-white rounded-[36px] p-8 shadow-xl relative overflow-hidden flex flex-col items-center justify-center min-h-[420px] text-center border border-indigo-500/20"
+                className="bg-white border border-[#f1f5f9] rounded-[36px] p-8 shadow-sm relative overflow-hidden flex flex-col items-center justify-center min-h-[420px] text-center"
               >
                 {/* Background decorative elements */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.15),transparent_60%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.04),transparent_60%)]" />
                 
                 <div className="relative z-10 space-y-6">
-                  <div className="inline-flex p-6 bg-white/10 text-indigo-300 rounded-[28px] border border-white/10 backdrop-blur-md animate-pulse">
+                  <div className="inline-flex p-6 bg-indigo-50 text-indigo-500 border border-indigo-100 rounded-[28px] animate-pulse">
                     <Coffee className="w-16 h-16 stroke-[1.2]" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black font-poppins tracking-wide">Chef's Recuperation Break</h2>
-                    <p className="text-sm text-indigo-200 mt-1 max-w-sm mx-auto font-medium">
+                    <h2 className="text-2xl font-black font-poppins tracking-wide text-slate-800">Chef's Recuperation Break</h2>
+                    <p className="text-sm text-slate-400 mt-1 max-w-sm mx-auto font-medium">
                       5-minute rest period. Next order in your queue will automatically begin once break ends.
                     </p>
                   </div>
                   
                   {/* Break Timer Countdown */}
                   <div className="py-2">
-                    <span className="text-7xl font-black font-poppins tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-indigo-200 to-purple-200 select-none">
+                    <span className="text-7xl font-black font-poppins tracking-wider text-[#7c3aed] select-none">
                       {formatTime(breakSecondsLeft)}
                     </span>
-                    <span className="block text-[10px] uppercase tracking-widest font-black text-indigo-400 mt-2">
+                    <span className="block text-[10px] uppercase tracking-widest font-black text-indigo-500 mt-2">
                       Seconds Remaining
                     </span>
                   </div>
 
                   {/* Progress bar for break */}
-                  <div className="w-64 bg-white/10 h-2 rounded-full overflow-hidden mx-auto border border-white/5">
+                  <div className="w-64 bg-slate-100 h-2 rounded-full overflow-hidden mx-auto border border-slate-200/50">
                     <motion.div 
                       initial={{ width: '100%' }}
                       animate={{ width: `${(breakSecondsLeft / 300) * 100}%` }}
                       transition={{ ease: 'linear' }}
-                      className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full"
+                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
                     />
                   </div>
                 </div>
