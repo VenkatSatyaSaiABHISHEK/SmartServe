@@ -131,7 +131,8 @@ export function OrdersPage() {
                     'Ready': 'bg-green-50 text-green-600 border border-green-100',
                     'Picked Up': 'bg-purple-50 text-purple-600 border border-purple-100',
                     'Completed': 'bg-slate-100 text-slate-600 border border-slate-200',
-                    'Delivered': 'bg-slate-50 text-slate-500 border border-slate-100'
+                    'Delivered': 'bg-slate-50 text-slate-500 border border-slate-100',
+                    'Cancelled': 'bg-rose-50 text-rose-600 border border-rose-100'
                   };
 
                   return (

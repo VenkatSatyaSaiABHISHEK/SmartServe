@@ -129,7 +129,7 @@ export function KitchenDisplayPage() {
                         <div className="w-40 bg-slate-200 h-1.5 rounded-full overflow-hidden mx-auto">
                           <div 
                             className="h-full bg-indigo-500" 
-                            style={{ width: `${(breakSecsLeft / 300) * 100}%` }}
+                            style={{ width: `${(breakSecsLeft / 120) * 100}%` }}
                           />
                         </div>
                       </div>

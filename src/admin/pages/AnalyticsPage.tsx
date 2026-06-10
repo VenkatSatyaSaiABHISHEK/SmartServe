@@ -7,7 +7,7 @@ export function AnalyticsPage() {
   const chefOrders = useChefStore(state => state.orders);
   const { reservations, currency } = useAdminStore();
 
-  const completedOrDeliveredOrders = chefOrders.filter(o => o.status === 'Completed' || o.status === 'Delivered' || o.status === 'Ready');
+  const completedOrDeliveredOrders = chefOrders.filter(o => (o.status === 'Completed' || o.status === 'Delivered' || o.status === 'Ready' || o.paymentStatus === 'Paid') && o.status !== 'Cancelled');
   const totalSalesVal = completedOrDeliveredOrders.reduce((sum, o) => sum + (o.price || 0), 0);
   const avgTicketValue = completedOrDeliveredOrders.length > 0 ? totalSalesVal / completedOrDeliveredOrders.length : 0;
 

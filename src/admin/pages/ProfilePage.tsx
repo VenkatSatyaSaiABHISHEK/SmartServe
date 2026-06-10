@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { User, Shield, KeyRound, Clock, Laptop } from 'lucide-react';
 
 export function ProfilePage() {
-  const [adminName, setAdminName] = useState('Head Administrator');
-  const [adminEmail, setAdminEmail] = useState('manager@restohq.com');
+  const [adminName, setAdminName] = useState(() => localStorage.getItem('adminName') || 'Head Administrator');
+  const [adminEmail, setAdminEmail] = useState(() => localStorage.getItem('adminEmail') || 'manager@restohq.com');
+  const [adminPhone, setAdminPhone] = useState(() => localStorage.getItem('adminPhone') || '+91 98765 43210');
 
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
+    localStorage.setItem('adminName', adminName);
+    localStorage.setItem('adminEmail', adminEmail);
+    localStorage.setItem('adminPhone', adminPhone);
     alert('Security profile parameters updated successfully!');
   };
 
@@ -39,6 +43,10 @@ export function ProfilePage() {
               <span className="text-[#0f172a] font-black">192.168.1.50</span>
             </div>
             <div className="flex justify-between">
+              <span>Phone Contact:</span>
+              <span className="text-[#0f172a] font-black">{adminPhone}</span>
+            </div>
+            <div className="flex justify-between">
               <span>Active Status:</span>
               <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg text-[9.5px]">AUTHENTICATED</span>
             </div>
@@ -69,6 +77,17 @@ export function ProfilePage() {
                   required
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
+                  className="w-full bg-[#fafafc] border border-[#f1f5f9] rounded-xl px-4 py-3 text-xs font-bold text-[#0f172a] focus:outline-none focus:border-slate-400"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-1">Contact Phone Number</label>
+                <input
+                  type="text"
+                  required
+                  value={adminPhone}
+                  onChange={(e) => setAdminPhone(e.target.value)}
                   className="w-full bg-[#fafafc] border border-[#f1f5f9] rounded-xl px-4 py-3 text-xs font-bold text-[#0f172a] focus:outline-none focus:border-slate-400"
                 />
               </div>

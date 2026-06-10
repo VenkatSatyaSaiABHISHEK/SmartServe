@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type OrderStatus = 'Confirmed' | 'Preparing' | 'On The Way' | 'Delivered';
+export type OrderStatus = 'Confirmed' | 'Preparing' | 'On The Way' | 'Delivered' | 'Cancelled';
 
 interface OrderState {
   status: OrderStatus;

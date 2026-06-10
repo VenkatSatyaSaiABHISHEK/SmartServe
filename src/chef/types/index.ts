@@ -17,7 +17,7 @@ export interface ChefOrder {
   tableNumber: number;
   items: { name: string; quantity: number }[];
   prepTimeMins: number;
-  status: 'New' | 'Preparing' | 'Ready' | 'Picked Up' | 'Completed' | 'Delivered';
+  status: 'New' | 'Preparing' | 'Ready' | 'Picked Up' | 'Completed' | 'Delivered' | 'Cancelled';
   assignedChefId: string;
   timeReceived: string;
   createdAt?: number;

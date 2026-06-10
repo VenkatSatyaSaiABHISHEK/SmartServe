@@ -117,7 +117,7 @@ export function PreparingPage() {
                   <div>
                     <h2 className="text-2xl font-black font-poppins tracking-wide text-slate-800">Chef's Recuperation Break</h2>
                     <p className="text-sm text-slate-400 mt-1 max-w-sm mx-auto font-medium">
-                      5-minute rest period. Next order in your queue will automatically begin once break ends.
+                      2-minute rest period. Next order in your queue will automatically begin once break ends.
                     </p>
                   </div>
                   
@@ -135,7 +135,7 @@ export function PreparingPage() {
                   <div className="w-64 bg-slate-100 h-2 rounded-full overflow-hidden mx-auto border border-slate-200/50">
                     <motion.div 
                       initial={{ width: '100%' }}
-                      animate={{ width: `${(breakSecondsLeft / 300) * 100}%` }}
+                      animate={{ width: `${(breakSecondsLeft / 120) * 100}%` }}
                       transition={{ ease: 'linear' }}
                       className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
                     />

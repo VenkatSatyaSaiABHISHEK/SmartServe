@@ -1,19 +1,22 @@
 import { create } from 'zustand';
 import type { Chef, ChefOrder } from '../types';
 import { db } from '../../firebase/config';
-import { doc, getDoc, collection, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, onSnapshot, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 interface ChefState {
   activeChef: Chef | null;
   chefs: Chef[];
   chefsLoaded: boolean;
   orders: ChefOrder[];
+  assignedBuffer?: Record<string, number>;
   login: (chefId: string, pin: string) => Promise<boolean>;
   logout: () => void;
   addNewOrder: (items: { name: string; quantity: number }[], tableNumber: number, prepTimeMins: number, price?: number, paymentMethod?: string, paymentStatus?: 'Unpaid' | 'Paid') => Promise<string>;
   startPreparing: (orderId: string) => Promise<void>;
   markReady: (orderId: string) => Promise<void>;
   markCompleted: (orderId: string) => Promise<void>;
+  cancelOrder: (orderId: string) => Promise<void>;
+  deleteOrder: (orderId: string) => Promise<void>;
   getChefActiveLoad: (chefId: string) => number;
   listenToChefs: () => (() => void);
   listenToOrders: () => (() => void);
@@ -37,6 +40,7 @@ export const useChefStore = create<ChefState>((set, get) => ({
   chefs: [],
   chefsLoaded: false,
   orders: [],
+  assignedBuffer: {},
 
   login: async (chefId, pin) => {
     try {
@@ -73,11 +77,14 @@ export const useChefStore = create<ChefState>((set, get) => ({
 
     // --- SMART ROUTING BASED ON CHEF AVAILABILITY TIME ---
     const now = Date.now();
+    const currentBuffer = state.assignedBuffer || {};
+    
     const chefAvailabilityTimes = state.chefs.map(chef => {
       const chefOrders = state.orders.filter(o => o.assignedChefId === chef.id && (o.status === 'New' || o.status === 'Preparing'));
+      const bufferCount = currentBuffer[chef.id] || 0;
       
-      // If chef has no active orders
-      if (chefOrders.length === 0) {
+      // If chef has no active orders in DB and no active buffer
+      if (chefOrders.length === 0 && bufferCount === 0) {
         // If they are on break, they are available after break completes
         const breakTime = chef.breakUntil || 0;
         return { id: chef.id, availableAt: Math.max(now, breakTime) };
@@ -90,10 +97,13 @@ export const useChefStore = create<ChefState>((set, get) => ({
       const newOrdersQueueTime = chefOrders
         .filter(o => o.status === 'New')
         .reduce((sum, o) => sum + (o.prepTimeMins * 60 * 1000), 0);
+      
+      // Buffered queue time
+      const bufferQueueTime = bufferCount * (prepTimeMins * 60 * 1000);
         
-      // Availability = preparation end time + queue time + 5 mins break
-      const totalPrepEndTime = Math.max(now, activePrepEndTime) + newOrdersQueueTime;
-      const finalAvailableAt = totalPrepEndTime + (5 * 60 * 1000); // 5 min break
+      // Availability = preparation end time + queue time + buffer time + 2 mins break
+      const totalPrepEndTime = Math.max(now, activePrepEndTime) + newOrdersQueueTime + bufferQueueTime;
+      const finalAvailableAt = totalPrepEndTime + (2 * 60 * 1000); // 2 min break
       
       return { id: chef.id, availableAt: finalAvailableAt };
     });
@@ -101,6 +111,10 @@ export const useChefStore = create<ChefState>((set, get) => ({
     // Sort chefs by availability time (earliest first)
     chefAvailabilityTimes.sort((a, b) => a.availableAt - b.availableAt);
     const assignedChefId = chefAvailabilityTimes.length > 0 ? chefAvailabilityTimes[0].id : 'C1';
+
+    // Increment local buffer for this chef to prevent immediate collision
+    const updatedBuffer = { ...currentBuffer, [assignedChefId]: (currentBuffer[assignedChefId] || 0) + 1 };
+    set({ assignedBuffer: updatedBuffer });
 
     const newOrder: ChefOrder = {
       id: newOrderId,
@@ -166,7 +180,7 @@ export const useChefStore = create<ChefState>((set, get) => ({
         // Update order status to Ready
         await updateDoc(orderRef, { status: 'Ready' });
 
-        // Put chef on a 5-minute break and update stats
+        // Put chef on a 2-minute break and update stats
         const chefRef = doc(db, 'chefs', chefId);
         const chefDoc = await getDoc(chefRef);
         if (chefDoc.exists()) {
@@ -177,7 +191,7 @@ export const useChefStore = create<ChefState>((set, get) => ({
           ).length;
 
           await updateDoc(chefRef, {
-            breakUntil: Date.now() + (5 * 60 * 1000), // 5 min break
+            breakUntil: Date.now() + (2 * 60 * 1000), // 2 min break
             ordersPrepared: newPreparedCount,
             activeLoad: activeLoadCount
           });
@@ -208,6 +222,37 @@ export const useChefStore = create<ChefState>((set, get) => ({
       }
     } catch (e) {
       console.error("Error completing order:", e);
+    }
+  },
+
+  cancelOrder: async (orderId) => {
+    try {
+      const orderRef = doc(db, 'orders', orderId);
+      const orderDoc = await getDoc(orderRef);
+      if (orderDoc.exists()) {
+        const orderData = orderDoc.data() as ChefOrder;
+        await updateDoc(orderRef, { status: 'Cancelled' });
+        
+        // Update active load count for chef
+        const chefId = orderData.assignedChefId;
+        const activeLoadCount = get().orders.filter(o => 
+          o.assignedChefId === chefId && (o.status === 'New' || o.status === 'Preparing')
+        ).length;
+        
+        await updateDoc(doc(db, 'chefs', chefId), {
+          activeLoad: activeLoadCount
+        });
+      }
+    } catch (e) {
+      console.error("Error cancelling order:", e);
+    }
+  },
+
+  deleteOrder: async (orderId) => {
+    try {
+      await deleteDoc(doc(db, 'orders', orderId));
+    } catch (e) {
+      console.error("Error deleting order:", e);
     }
   },
 
@@ -242,7 +287,9 @@ export const useChefStore = create<ChefState>((set, get) => ({
         items.push(doc.data() as ChefOrder);
       });
       items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      set({ orders: items });
+      
+      // Clear local buffer when we receive a fresh Firestore sync
+      set({ orders: items, assignedBuffer: {} });
       get().tickOrdersAndBreaks();
     });
   },

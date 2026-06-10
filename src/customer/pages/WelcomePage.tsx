@@ -18,10 +18,10 @@ export function WelcomePage() {
   // Save table and guests data to cart store on mount
   useEffect(() => {
     if (tableNum) {
-      setTableNumber(parseInt(tableNum) || 12);
+      setTableNumber(parseInt(tableNum));
     }
     if (guestsCount) {
-      setGuestsCount(parseInt(guestsCount) || 4);
+      setGuestsCount(parseInt(guestsCount));
     }
   }, [tableNum, guestsCount, setTableNumber, setGuestsCount]);
 
@@ -316,43 +316,103 @@ export function WelcomePage() {
             </div>
 
             {/* Bottom Section */}
-            <div className="flex flex-col items-center gap-5 mb-8 z-10">
-              <div className="text-center">
-                <p className="text-slate-500 font-extrabold text-[15px] font-poppins">
-                  Ready to enjoy your meal today?
-                </p>
-                
-                <div className="flex gap-3 mt-4 justify-center">
-                  <div className="bg-slate-50/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-100 flex flex-col items-center min-w-[80px]">
-                    <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Table</span>
-                    <span className="text-base font-black text-slate-800 mt-0.5">{tableNumber}</span>
+            <div className="flex flex-col items-center gap-5 mb-8 z-10 w-full px-6">
+              {tableNumber > 0 ? (
+                <>
+                  <div className="text-center">
+                    <p className="text-slate-500 font-extrabold text-[15px] font-poppins">
+                      Ready to enjoy your meal today?
+                    </p>
+                    
+                    <div className="flex gap-3 mt-4 justify-center">
+                      <div className="bg-slate-50/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-100 flex flex-col items-center min-w-[80px]">
+                        <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Table</span>
+                        <span className="text-base font-black text-slate-800 mt-0.5">{tableNumber}</span>
+                      </div>
+                      <div className="bg-slate-50/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-100 flex flex-col items-center min-w-[80px]">
+                        <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Guests</span>
+                        <span className="text-base font-black text-slate-800 mt-0.5">{guests}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-slate-50/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-100 flex flex-col items-center min-w-[80px]">
-                    <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Guests</span>
-                    <span className="text-base font-black text-slate-800 mt-0.5">{guests}</span>
-                  </div>
-                </div>
-              </div>
 
-              {/* Large Attractive Order Now Button */}
-              <motion.button
-                onClick={() => setShowPreferenceModal(true)}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                animate={{
-                  boxShadow: [
-                    '0 10px 20px -10px rgba(37,99,235,0.4)',
-                    '0 10px 25px -5px rgba(37,99,235,0.6)',
-                    '0 10px 20px -10px rgba(37,99,235,0.4)'
-                  ]
-                }}
-                transition={{
-                  boxShadow: { repeat: Infinity, duration: 2, ease: 'easeInOut' }
-                }}
-                className="w-full max-w-xs py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[24px] font-black uppercase tracking-wider text-sm shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                Order Now
-              </motion.button>
+                  {/* Large Attractive Order Now Button */}
+                  <motion.button
+                    onClick={() => setShowPreferenceModal(true)}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    animate={{
+                      boxShadow: [
+                        '0 10px 20px -10px rgba(37,99,235,0.4)',
+                        '0 10px 25px -5px rgba(37,99,235,0.6)',
+                        '0 10px 20px -10px rgba(37,99,235,0.4)'
+                      ]
+                    }}
+                    transition={{
+                      boxShadow: { repeat: Infinity, duration: 2, ease: 'easeInOut' }
+                    }}
+                    className="w-full max-w-xs py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[24px] font-black uppercase tracking-wider text-sm shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    Order Now
+                  </motion.button>
+                </>
+              ) : (
+                <div className="w-full max-w-xs bg-white rounded-[24px] p-5 border border-slate-100 shadow-[0_4px_16px_rgba(0,0,0,0.01)] text-center space-y-4">
+                  <div className="flex flex-col items-center">
+                    <span className="text-2xl mb-1">📍</span>
+                    <h4 className="text-xs font-black text-slate-800 font-poppins uppercase tracking-wider">No Table Detected</h4>
+                    <p className="text-[10px] text-slate-400 font-bold leading-normal mt-1 max-w-[200px]">
+                      Please scan the table QR code, or enter your dining table details manually:
+                    </p>
+                  </div>
+                  
+                  {/* Manual Inputs */}
+                  <div className="flex gap-2.5">
+                    <div className="flex-1 flex flex-col items-start gap-1">
+                      <span className="text-[8.5px] text-slate-400 font-black uppercase tracking-wider pl-1">Table No.</span>
+                      <input
+                        type="number"
+                        placeholder="Table"
+                        id="manual-table-input"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-[#0f172a] text-center focus:outline-none focus:border-blue-500"
+                        min="1"
+                        max="50"
+                      />
+                    </div>
+                    <div className="flex-1 flex flex-col items-start gap-1">
+                      <span className="text-[8.5px] text-slate-400 font-black uppercase tracking-wider pl-1">No. of Guests</span>
+                      <select
+                        id="manual-guests-input"
+                        defaultValue="4"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-[#0f172a] text-center focus:outline-none focus:border-blue-500"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+                          <option key={n} value={n}>{n} Pax</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      const tInput = document.getElementById('manual-table-input') as HTMLInputElement;
+                      const gInput = document.getElementById('manual-guests-input') as HTMLSelectElement;
+                      const tVal = parseInt(tInput?.value || '');
+                      const gVal = parseInt(gInput?.value || '4');
+                      if (isNaN(tVal) || tVal <= 0) {
+                        alert('Please enter a valid table number.');
+                        return;
+                      }
+                      setTableNumber(tVal);
+                      setGuestsCount(gVal);
+                      setShowPreferenceModal(true);
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    Set Table & Order
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

@@ -4,7 +4,7 @@ import { useAdminStore } from '../store/useAdminStore';
 import { ShieldAlert, KeyRound, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { db } from '../../firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export function LoginPage() {
   const { login } = useAdminStore();
@@ -21,12 +21,22 @@ export function LoginPage() {
     
     try {
       const cleanedUsername = username.trim().toLowerCase();
-      // Try to fetch the system admin document
+      
+      // 1. Try directly fetching by document ID
       const adminDocRef = doc(db, 'system_admins', cleanedUsername);
       const adminDoc = await getDoc(adminDocRef);
+      let adminData = adminDoc.exists() ? adminDoc.data() : null;
+
+      // 2. If not found by document ID, try querying by username field
+      if (!adminData) {
+        const q = query(collection(db, 'system_admins'), where('username', '==', cleanedUsername));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          adminData = querySnapshot.docs[0].data();
+        }
+      }
       
-      if (adminDoc.exists()) {
-        const adminData = adminDoc.data();
+      if (adminData) {
         if (adminData.password === password || adminData.pin === password) {
           login();
           navigate('/admin');

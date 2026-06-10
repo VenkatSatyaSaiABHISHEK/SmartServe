@@ -27,8 +27,8 @@ interface CartState {
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   dietPreference: 'all',
-  tableNumber: 12,
-  guestsCount: 4,
+  tableNumber: 0,
+  guestsCount: 0,
   setDietPreference: (preference) => set({ dietPreference: preference }),
   setTableNumber: (num) => set({ tableNumber: num }),
   setGuestsCount: (num) => set({ guestsCount: num }),

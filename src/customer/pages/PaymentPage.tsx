@@ -41,21 +41,90 @@ export function PaymentPage() {
       return sum + (itemPrep * cartItem.quantity);
     }, 0);
 
-    // Send order to KDS (useChefStore)
-    const chefOrderItems = cartItems.map(item => ({ name: item.name, quantity: item.quantity }));
-    const newOrderId = await useChefStore.getState().addNewOrder(
-      chefOrderItems, 
-      tableNumber, 
-      calculatedPrepTime,
-      grandTotal,
-      selectedMethod,
-      'Paid'
-    );
+    if (calculatedPrepTime > 30 && cartItems.length > 0) {
+      // Split the cart items into two lists to balance prep time
+      let cartListA: typeof cartItems = [];
+      let cartListB: typeof cartItems = [];
+      let timeA = 0;
+      let timeB = 0;
 
-    // Save details to Customer Order State
-    setOrderId(newOrderId);
-    setOrderStatus('Confirmed');
-    setEstimatedTime(calculatedPrepTime);
+      // Split items by unit quantity to balance optimally
+      for (const item of cartItems) {
+        const menuItem = menuItems.find(m => m.id === item.id || m.name === item.name);
+        const singlePrep = menuItem?.prepTime || 10;
+
+        if (item.quantity > 1) {
+          const qtyA = Math.floor(item.quantity / 2);
+          const qtyB = item.quantity - qtyA;
+          
+          if (qtyA > 0) {
+            cartListA.push({ ...item, quantity: qtyA });
+            timeA += singlePrep * qtyA;
+          }
+          if (qtyB > 0) {
+            cartListB.push({ ...item, quantity: qtyB });
+            timeB += singlePrep * qtyB;
+          }
+        } else {
+          if (timeA <= timeB) {
+            cartListA.push(item);
+            timeA += singlePrep;
+          } else {
+            cartListB.push(item);
+            timeB += singlePrep;
+          }
+        }
+      }
+
+      // Add both orders to KDS
+      const chefOrderItemsA = cartListA.map(item => ({ name: item.name, quantity: item.quantity }));
+      const chefOrderItemsB = cartListB.map(item => ({ name: item.name, quantity: item.quantity }));
+
+      const subtotalA = cartListA.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const grandTotalA = subtotalA + (subtotalA * 0.05);
+
+      const subtotalB = cartListB.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const grandTotalB = subtotalB + (subtotalB * 0.05);
+
+      const newOrderIdA = await useChefStore.getState().addNewOrder(
+        chefOrderItemsA, 
+        tableNumber, 
+        timeA,
+        grandTotalA,
+        selectedMethod,
+        'Paid'
+      );
+
+      const newOrderIdB = await useChefStore.getState().addNewOrder(
+        chefOrderItemsB, 
+        tableNumber, 
+        timeB,
+        grandTotalB,
+        selectedMethod,
+        'Paid'
+      );
+
+      // Save comma-separated IDs to Customer Order State
+      setOrderId(`${newOrderIdA},${newOrderIdB}`);
+      setOrderStatus('Confirmed');
+      setEstimatedTime(Math.max(timeA, timeB)); // estimated time is the max since they cook in parallel
+    } else {
+      // Normal single order flow
+      const chefOrderItems = cartItems.map(item => ({ name: item.name, quantity: item.quantity }));
+      const newOrderId = await useChefStore.getState().addNewOrder(
+        chefOrderItems, 
+        tableNumber, 
+        calculatedPrepTime,
+        grandTotal,
+        selectedMethod,
+        'Paid'
+      );
+
+      setOrderId(newOrderId);
+      setOrderStatus('Confirmed');
+      setEstimatedTime(calculatedPrepTime);
+    }
+
     clearCart();
     navigate('/tracking');
   };

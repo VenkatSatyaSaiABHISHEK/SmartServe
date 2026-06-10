@@ -10,7 +10,7 @@ export function DashboardPage() {
   const { menuItems, reservations, notifications, currency } = useAdminStore();
   const chefOrders = useChefStore(state => state.orders);
 
-  const completedOrDeliveredOrders = chefOrders.filter(o => o.status === 'Completed' || o.status === 'Delivered' || o.status === 'Ready');
+  const completedOrDeliveredOrders = chefOrders.filter(o => (o.status === 'Completed' || o.status === 'Delivered' || o.status === 'Ready' || o.paymentStatus === 'Paid') && o.status !== 'Cancelled');
   const completedOrders = chefOrders.filter(o => o.status === 'Completed' || o.status === 'Delivered').length;
 
   const totalSalesVal = completedOrDeliveredOrders.reduce((sum, o) => sum + (o.price || 0), 0);
@@ -242,6 +242,33 @@ export function DashboardPage() {
                         <div className="flex items-center justify-between border-t border-slate-50 pt-2 text-[9px] font-bold text-slate-400 uppercase">
                           <span>Prep: {order.prepTimeMins}m</span>
                           <span>{order.timeReceived}</span>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="border-t border-slate-50 pt-2.5 flex items-center justify-end gap-2 shrink-0">
+                          {stage !== 'Completed' ? (
+                            <button
+                              onClick={() => {
+                                if (confirm(`Cancel Order #${order.id}?`)) {
+                                  useChefStore.getState().cancelOrder(order.id);
+                                }
+                              }}
+                              className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider bg-rose-50 text-rose-600 border border-rose-100 rounded-md hover:bg-rose-100 active:bg-rose-200 transition-colors cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                if (confirm(`Permanently remove Order #${order.id}?`)) {
+                                  useChefStore.getState().deleteOrder(order.id);
+                                }
+                              }}
+                              className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider bg-slate-50 text-slate-500 border border-slate-200/60 rounded-md hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))
