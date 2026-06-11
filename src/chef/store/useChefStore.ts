@@ -197,6 +197,17 @@ export const useChefStore = create<ChefState>((set, get) => ({
         // Update order status to Ready
         await updateDoc(orderRef, { status: 'Ready' });
 
+        // Write a single notification to Firestore for the waiter to receive
+        const notiId = `N_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        const newNoti = {
+          id: notiId,
+          type: 'table_ready',
+          message: `Table ${orderData.tableNumber}: Order ${orderData.id} is ready for collection! 🍽️`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          read: false
+        };
+        await setDoc(doc(db, 'notifications', notiId), newNoti);
+
         // Put chef on a 2-minute break and update stats
         const chefRef = doc(db, 'chefs', chefId);
         const chefDoc = await getDoc(chefRef);

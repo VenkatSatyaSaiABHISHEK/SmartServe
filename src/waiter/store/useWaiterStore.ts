@@ -307,21 +307,6 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
       });
       items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-      // Trigger automatic notification and play chime when order transitions to 'Ready'
-      const prevOrders = get().orders;
-      if (prevOrders.length > 0) {
-        items.forEach((order) => {
-          const prevOrder = prevOrders.find(o => o.id === order.id);
-          if (order.status === 'Ready' && prevOrder && prevOrder.status !== 'Ready') {
-            get().addNotification({
-              type: 'table_ready',
-              message: `Table ${order.tableId}: Order ${order.id} is ready for collection! 🍽️`
-            });
-            playChimeSound();
-          }
-        });
-      }
-
       set({ orders: items });
     });
   },
