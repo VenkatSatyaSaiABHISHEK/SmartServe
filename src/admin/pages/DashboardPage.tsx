@@ -63,7 +63,7 @@ export function DashboardPage() {
           <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">Restaurant overview, financial logs, and active client statistics.</p>
         </div>
         <div className="text-xs font-bold text-slate-500 bg-white border border-[#f1f5f9] px-4 py-2.5 rounded-[15px] shadow-sm">
-          Shift Date: <span className="text-[#0f172a] font-black">June 9, 2026</span>
+          Shift Date: <span className="text-[#0f172a] font-black">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
         </div>
       </div>
 
