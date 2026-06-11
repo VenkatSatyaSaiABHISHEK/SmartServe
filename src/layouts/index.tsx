@@ -17,6 +17,7 @@ export function RootLayout() {
     const unsubReviews = listenToReviews();
     
     // Subscribe to Firestore collections globally
+    const unsubChefsChefStore = useChefStore.getState().listenToChefs();
     const unsubOrdersChef = useChefStore.getState().listenToOrders();
     const unsubOrdersWaiter = useWaiterStore.getState().listenToOrders();
     const unsubTables = useWaiterStore.getState().listenToTables();
@@ -30,6 +31,7 @@ export function RootLayout() {
       if (unsubWaiters) unsubWaiters();
       if (unsubChefs) unsubChefs();
       if (unsubReviews) unsubReviews();
+      if (unsubChefsChefStore) unsubChefsChefStore();
       if (unsubOrdersChef) unsubOrdersChef();
       if (unsubOrdersWaiter) unsubOrdersWaiter();
       if (unsubTables) unsubTables();

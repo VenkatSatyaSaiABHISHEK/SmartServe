@@ -341,6 +341,22 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
         });
       });
       items.sort((a, b) => a.number - b.number);
+
+      const currentWaiter = get().waiter;
+      const prevTables = get().tables;
+
+      if (currentWaiter && prevTables && prevTables.length > 0) {
+        items.forEach((table) => {
+          const prevTable = prevTables.find(t => t.id === table.id);
+          const wasNotAssigned = !prevTable || prevTable.assignedWaiterId !== currentWaiter.id;
+          const isNowAssigned = table.assignedWaiterId === currentWaiter.id;
+          if (wasNotAssigned && isNowAssigned) {
+            console.log(`Table ${table.number} newly assigned to waiter! Playing sound...`);
+            playChimeSound();
+          }
+        });
+      }
+
       set({ tables: items });
     });
   },
@@ -356,6 +372,15 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
         if (a.read === b.read) return 0;
         return a.read ? 1 : -1;
       });
+
+      const prevNotis = get().notifications;
+      if (prevNotis.length > 0 && items.length > prevNotis.length) {
+        const hasNewUnread = items.some(item => !item.read && !prevNotis.find(p => p.id === item.id));
+        if (hasNewUnread) {
+          playChimeSound();
+        }
+      }
+
       set({ notifications: items });
     });
   }

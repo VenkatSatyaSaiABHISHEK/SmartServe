@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Chef, ChefOrder } from '../types';
 import { db } from '../../firebase/config';
-import { doc, getDoc, collection, onSnapshot, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, onSnapshot, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 interface ChefState {
   activeChef: Chef | null;
@@ -79,7 +79,24 @@ export const useChefStore = create<ChefState>((set, get) => ({
     const now = Date.now();
     const currentBuffer = state.assignedBuffer || {};
     
-    const chefAvailabilityTimes = state.chefs.map(chef => {
+    let chefsList = state.chefs;
+    if (chefsList.length === 0) {
+      try {
+        const chefsCol = collection(db, 'chefs');
+        const snapshot = await getDocs(chefsCol);
+        const itemsList: Chef[] = [];
+        snapshot.forEach((doc) => {
+          itemsList.push(doc.data() as Chef);
+        });
+        itemsList.sort((a, b) => a.id.localeCompare(b.id));
+        chefsList = itemsList;
+        set({ chefs: itemsList, chefsLoaded: true });
+      } catch (error) {
+        console.error("Error loading chefs in addNewOrder fallback:", error);
+      }
+    }
+    
+    const chefAvailabilityTimes = chefsList.map(chef => {
       const chefOrders = state.orders.filter(o => o.assignedChefId === chef.id && (o.status === 'New' || o.status === 'Preparing'));
       const bufferCount = currentBuffer[chef.id] || 0;
       

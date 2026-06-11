@@ -29,6 +29,7 @@ interface AdminState {
   chefs: Chef[];
   reviews: GuestReview[];
   reviewsLoaded: boolean;
+  menuItemsLoaded: boolean;
   
   // Auth actions
   login: () => void;
@@ -81,6 +82,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   chefs: [],
   reviews: [],
   reviewsLoaded: false,
+  menuItemsLoaded: false,
 
   login: () => {
     localStorage.setItem('isAdminLoggedIn', 'true');
@@ -150,7 +152,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         items.push(doc.data() as MenuItem);
       });
       items.sort((a, b) => (parseInt(a.id) || 0) - (parseInt(b.id) || 0));
-      set({ menuItems: items });
+      set({ menuItems: items, menuItemsLoaded: true });
     }, (error) => {
       console.error("Error in onSnapshot listener for menu items:", error);
     });

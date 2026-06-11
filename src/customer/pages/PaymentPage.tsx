@@ -5,7 +5,11 @@ import { useCartStore } from '../store/useCartStore';
 import { useOrderStore } from '../store/useOrderStore';
 import { useAdminStore } from '../../admin/store/useAdminStore';
 import { useChefStore } from '../../chef/store/useChefStore';
+import { useWaiterStore } from '../../waiter/store/useWaiterStore';
+import { db } from '../../firebase/config';
+import { doc, updateDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
+import { exitFullscreen } from '../utils/fullscreen';
 
 const PAYMENT_METHODS = [
   { id: 'gpay', name: 'Google Pay', icon: Smartphone, color: 'text-blue-500', bg: 'bg-blue-50' },
@@ -80,10 +84,12 @@ export function PaymentPage() {
       const chefOrderItemsA = cartListA.map(item => ({ name: item.name, quantity: item.quantity }));
       const chefOrderItemsB = cartListB.map(item => ({ name: item.name, quantity: item.quantity }));
 
-      const subtotalA = cartListA.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const discountMult = useCartStore.getState().isDiscountActive ? 0.8 : 1.0;
+
+      const subtotalA = cartListA.reduce((sum, item) => sum + (item.price * item.quantity), 0) * discountMult;
       const grandTotalA = subtotalA + (subtotalA * 0.05);
 
-      const subtotalB = cartListB.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const subtotalB = cartListB.reduce((sum, item) => sum + (item.price * item.quantity), 0) * discountMult;
       const grandTotalB = subtotalB + (subtotalB * 0.05);
 
       const newOrderIdA = await useChefStore.getState().addNewOrder(
@@ -125,7 +131,45 @@ export function PaymentPage() {
       setEstimatedTime(calculatedPrepTime);
     }
 
+    // Auto-assign waiter to table
+    try {
+      const waitersList = useAdminStore.getState().waiters;
+      const tablesList = useWaiterStore.getState().tables;
+      
+      let selectedWaiterId = '';
+      
+      // Filter active / online waiters
+      const activeWaiters = waitersList.filter(w => w.status === 'Active' || w.onlineStatus !== false);
+      const candidates = activeWaiters.length > 0 ? activeWaiters : waitersList;
+      
+      if (candidates.length > 0) {
+        // Count assigned tables for each candidate waiter
+        const waiterLoads = candidates.map(w => {
+          const load = tablesList.filter(t => t.assignedWaiterId === w.id).length;
+          return { id: w.id, load };
+        });
+        
+        // Sort by load ascending
+        waiterLoads.sort((a, b) => a.load - b.load);
+        selectedWaiterId = waiterLoads[0].id;
+      } else {
+        selectedWaiterId = 'W1';
+      }
+      
+      // Assign the table in Firestore
+      const tableId = `T${tableNumber}`;
+      await updateDoc(doc(db, 'tables', tableId), {
+        assignedWaiterId: selectedWaiterId,
+        status: 'occupied'
+      });
+      console.log(`Automatically assigned Waiter ${selectedWaiterId} to Table ${tableNumber}`);
+    } catch (err) {
+      console.error("Error auto-assigning waiter:", err);
+    }
+
     clearCart();
+    useCartStore.getState().applyDiscount(false);
+    exitFullscreen();
     navigate('/tracking');
   };
 
@@ -194,6 +238,11 @@ export function PaymentPage() {
           <div className="bg-white rounded-[24px] p-5 shadow-[0_4px_16px_rgba(0,0,0,0.01)] border border-slate-100 mb-6 flex flex-col items-center justify-center py-7">
             <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1.5">Total Amount Due</span>
             <h2 className="text-3xl font-black text-slate-800 font-poppins">₹{grandTotal.toFixed(2)}</h2>
+            {useCartStore.getState().isDiscountActive && (
+              <span className="text-[10.5px] font-extrabold text-emerald-600 uppercase tracking-wider mt-1.5 block">
+                🏷️ 20% Re-order discount applied!
+              </span>
+            )}
             <div className="mt-2.5 flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[9px] font-black uppercase tracking-wider text-slate-500">
               <Lock className="w-3 h-3 text-emerald-500" />
               128-Bit Secure Checkout

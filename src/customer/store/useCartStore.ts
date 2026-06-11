@@ -13,6 +13,7 @@ interface CartState {
   dietPreference: 'all' | 'veg' | 'non-veg';
   tableNumber: number;
   guestsCount: number;
+  isDiscountActive: boolean;
   addItem: (item: CartItem) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -22,6 +23,7 @@ interface CartState {
   setDietPreference: (preference: 'all' | 'veg' | 'non-veg') => void;
   setTableNumber: (num: number) => void;
   setGuestsCount: (num: number) => void;
+  applyDiscount: (active: boolean) => void;
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
@@ -29,9 +31,14 @@ export const useCartStore = create<CartState>((set, get) => ({
   dietPreference: 'all',
   tableNumber: 0,
   guestsCount: 0,
+  isDiscountActive: localStorage.getItem('isReorderDiscountActive') === 'true',
   setDietPreference: (preference) => set({ dietPreference: preference }),
   setTableNumber: (num) => set({ tableNumber: num }),
   setGuestsCount: (num) => set({ guestsCount: num }),
+  applyDiscount: (active) => {
+    localStorage.setItem('isReorderDiscountActive', String(active));
+    set({ isDiscountActive: active });
+  },
   addItem: (newItem) => set((state) => {
     const existingItem = state.items.find(item => item.id === newItem.id);
     if (existingItem) {
@@ -54,7 +61,11 @@ export const useCartStore = create<CartState>((set, get) => ({
   clearCart: () => set({ items: [] }),
   getCartTotal: () => {
     const state = get();
-    return state.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const subtotal = state.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+    if (state.isDiscountActive) {
+      return subtotal * 0.8;
+    }
+    return subtotal;
   },
   getCartCount: () => {
     const state = get();
