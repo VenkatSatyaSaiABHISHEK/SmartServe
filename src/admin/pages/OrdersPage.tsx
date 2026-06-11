@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useChefStore } from '../../chef/store/useChefStore';
 import { useAdminStore } from '../store/useAdminStore';
-import { Search, Printer, HelpCircle, UtensilsCrossed, Clock, CheckCircle2 } from 'lucide-react';
+import { Search, Printer, HelpCircle, UtensilsCrossed, Clock, CheckCircle2, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { jsPDF } from 'jspdf';
 
 export function OrdersPage() {
   const chefStore = useChefStore();
@@ -41,6 +42,129 @@ export function OrdersPage() {
   const handlePrintReceipt = (orderId: string) => {
     alert(`Sending invoice receipt for ${orderId} to thermal printer... 🖨️`);
   };
+
+  const handleDownloadPDF = (orderId: string) => {
+    const order = chefStore.orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    let finalBill = 0;
+    let subtotal = 0;
+    let tax = 0;
+    
+    if (order.price) {
+      finalBill = order.price;
+      subtotal = finalBill / 1.05;
+      tax = finalBill - subtotal;
+    } else {
+      subtotal = getOrderTotal(order.items);
+      tax = subtotal * 0.05;
+      finalBill = subtotal + tax;
+    }
+
+    // fallback for Indian Rupee symbol which standard PDF Helvetica does not support
+    const currencySymbol = currency === '₹' ? 'Rs.' : currency;
+
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [80, 140 + order.items.length * 8]
+    });
+
+    // Font settings
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(13);
+    
+    // Header
+    doc.text('SMARTSERVE HQ', 40, 12, { align: 'center' });
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('SmartServe Restaurant ERP Portal', 40, 17, { align: 'center' });
+    doc.text('Live Billing Invoice', 40, 21, { align: 'center' });
+    
+    // Divider
+    doc.setDrawColor(200, 200, 200);
+    doc.line(5, 25, 75, 25);
+    
+    // Order info
+    doc.setFont('Helvetica', 'bold');
+    doc.text(`Order ID: ${order.id}`, 5, 31);
+    doc.setFont('Helvetica', 'normal');
+    doc.text(`Table: Table ${order.tableNumber}`, 5, 36);
+    
+    const chefName = chefs.find(c => c.id === order.assignedChefId)?.name || order.assignedChefId;
+    doc.text(`Chef node: ${chefName}`, 5, 41);
+    
+    const timeStr = order.timeReceived || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    doc.text(`Time received: ${timeStr}`, 5, 46);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 5, 51);
+    
+    // Divider
+    doc.line(5, 55, 75, 55);
+    
+    // Table Headers
+    doc.setFont('Helvetica', 'bold');
+    doc.text('Item Description', 5, 61);
+    doc.text('Qty', 50, 61, { align: 'center' });
+    doc.text('Total', 75, 61, { align: 'right' });
+    
+    doc.setFont('Helvetica', 'normal');
+    let currentY = 67;
+    
+    // Items
+    order.items.forEach((item) => {
+      const itemPrice = DISH_PRICES[item.name] || 15.00;
+      const totalItemPrice = itemPrice * item.quantity;
+      
+      const itemName = item.name.length > 22 ? item.name.substring(0, 20) + '..' : item.name;
+      doc.text(itemName, 5, currentY);
+      doc.text(item.quantity.toString(), 50, currentY, { align: 'center' });
+      doc.text(`${currencySymbol}${totalItemPrice.toFixed(2)}`, 75, currentY, { align: 'right' });
+      currentY += 6;
+    });
+    
+    // Divider
+    doc.line(5, currentY, 75, currentY);
+    currentY += 6;
+    
+    // Summary
+    doc.text('Subtotal:', 5, currentY);
+    doc.text(`${currencySymbol}${subtotal.toFixed(2)}`, 75, currentY, { align: 'right' });
+    currentY += 5;
+    
+    doc.text('GST (5%):', 5, currentY);
+    doc.text(`${currencySymbol}${tax.toFixed(2)}`, 75, currentY, { align: 'right' });
+    currentY += 6;
+    
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Grand Total:', 5, currentY);
+    doc.text(`${currencySymbol}${finalBill.toFixed(2)}`, 75, currentY, { align: 'right' });
+    currentY += 8;
+    
+    // Divider
+    doc.line(5, currentY, 75, currentY);
+    currentY += 6;
+    
+    // Payment info
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('Payment Status:', 5, currentY);
+    doc.setFont('Helvetica', 'bold');
+    const paymentText = `${order.paymentStatus || 'UNPAID'} (${(order.paymentMethod || 'LATER').toUpperCase()})`;
+    doc.text(paymentText, 75, currentY, { align: 'right' });
+    currentY += 8;
+    
+    // Footer
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text('Thank you for dining with us!', 40, currentY, { align: 'center' });
+    currentY += 4;
+    doc.text('SmartServe ERP Receipt System', 40, currentY, { align: 'center' });
+    
+    // Save the PDF
+    doc.save(`Invoice_${order.id}.pdf`);
+  };
+
 
   return (
     <div className="space-y-6 pb-10">
@@ -178,13 +302,22 @@ export function OrdersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-5 text-right">
-                        <button
-                          onClick={() => handlePrintReceipt(order.id)}
-                          className="inline-flex items-center gap-1.5 bg-slate-900 text-white hover:bg-slate-800 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm cursor-pointer"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          Print Invoice
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleDownloadPDF(order.id)}
+                            className="inline-flex items-center gap-1.5 bg-[#7c3aed] text-white hover:bg-[#6d28d9] px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm cursor-pointer transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Download PDF
+                          </button>
+                          <button
+                            onClick={() => handlePrintReceipt(order.id)}
+                            className="inline-flex items-center gap-1.5 bg-slate-900 text-white hover:bg-slate-800 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm cursor-pointer transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            Print Invoice
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
