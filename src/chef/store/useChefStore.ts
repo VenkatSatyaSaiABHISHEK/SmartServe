@@ -323,7 +323,11 @@ export const useChefStore = create<ChefState>((set, get) => ({
     return onSnapshot(ordersCol, (snapshot) => {
       const items: ChefOrder[] = [];
       snapshot.forEach((doc) => {
-        items.push(doc.data() as ChefOrder);
+        const data = doc.data();
+        items.push({
+          ...(data as ChefOrder),
+          id: data.id || doc.id
+        });
       });
       items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       

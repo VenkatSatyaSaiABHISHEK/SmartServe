@@ -297,7 +297,7 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
       snapshot.forEach((doc) => {
         const data = doc.data();
         items.push({
-          id: data.id,
+          id: data.id || doc.id,
           tableId: String(data.tableNumber),
           items: data.items,
           price: data.price || (data.prepTimeMins * 3.5 + 10.0),
