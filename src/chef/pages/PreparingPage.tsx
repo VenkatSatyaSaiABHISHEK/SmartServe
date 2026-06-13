@@ -73,7 +73,7 @@ export function PreparingPage() {
 2. Top with cashews.
 3. Dum-cook for 15-20m.`
           };
-          const key = dishName.toLowerCase().trim();
+          const key = dishName.toLowerCase().replace(/\s+/g, ' ').trim();
           let matched = '';
           for (const [k, v] of Object.entries(fallbacks)) {
             if (key.includes(k) || k.includes(key)) {
@@ -179,7 +179,7 @@ export function PreparingPage() {
 4. Layer rice and paneer masala in a heavy pan. Top with cashews and saffron water.
 5. Dum-cook on low flame for 15-20 minutes. Serve hot.`
         };
-        const key = dishName.toLowerCase().trim();
+        const key = dishName.toLowerCase().replace(/\s+/g, ' ').trim();
         let matchedFallback = '';
         for (const [k, v] of Object.entries(fallbacks)) {
           if (key.includes(k) || k.includes(key)) {

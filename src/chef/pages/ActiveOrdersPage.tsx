@@ -53,7 +53,7 @@ export function ActiveOrdersPage() {
 4. Layer rice and paneer masala in a heavy pan. Top with cashews and saffron water.
 5. Dum-cook on low flame for 15-20 minutes. Serve hot.`
         };
-        const key = dishName.toLowerCase().trim();
+        const key = dishName.toLowerCase().replace(/\s+/g, ' ').trim();
         let matchedFallback = '';
         for (const [k, v] of Object.entries(fallbacks)) {
           if (key.includes(k) || k.includes(key)) {
