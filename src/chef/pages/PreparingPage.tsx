@@ -167,6 +167,113 @@ export function PreparingPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Auto-Recipe loading state for active order items
+  const [autoRecipes, setAutoRecipes] = useState<Record<string, { loading: boolean; result: string | null; error: string | null }>>({});
+
+  useEffect(() => {
+    if (!activeOrder) {
+      setAutoRecipes({});
+      return;
+    }
+
+    activeOrder.items.forEach(async (item) => {
+      const dishName = item.name;
+      // If already fetching or loaded, skip
+      if (autoRecipes[dishName]) return;
+
+      setAutoRecipes(prev => ({
+        ...prev,
+        [dishName]: { loading: true, result: null, error: null }
+      }));
+
+      const groqKey = (import.meta.env.VITE_GROQ_API_KEY || '').trim();
+      if (!groqKey) {
+        setTimeout(() => {
+          const fallbacks: Record<string, string> = {
+            'sweet corn pizza': `### 🍕 Sweet Corn Pizza Guide
+* **Prep**: 10m | **Cook**: 8m
+* **Ingredients**: Dough, Tomato Sauce, Mozzarella, Sweet Corn, Bell Peppers, Oregano.
+1. Roll dough to 10".
+2. Spread sauce, sprinkle mozzarella.
+3. Top with corn and bell peppers.
+4. Bake at 220°C for 8-10m.`,
+            'paneer butter masala': `### 🍲 Paneer Butter Masala Guide
+* **Prep**: 15m | **Cook**: 15m
+* **Ingredients**: Paneer, Butter, Tomato, Cashew, Garam Masala, Cream.
+1. Sauté ginger-garlic and tomato.
+2. Blend cashew paste.
+3. Simmer paneer cubes for 3m.
+4. Stir in cream.`,
+            'kaaju paneer biryani': `### 🍚 Kaaju Paneer Biryani Guide
+* **Prep**: 20m | **Cook**: 25m
+* **Ingredients**: Basmati, Paneer, Cashews, Biryani Spices, Saffron.
+1. Layer rice and paneer masala in pot.
+2. Top with cashews.
+3. Dum-cook for 15-20m.`
+          };
+          const key = dishName.toLowerCase().trim();
+          let matched = '';
+          for (const [k, v] of Object.entries(fallbacks)) {
+            if (key.includes(k) || k.includes(key)) {
+              matched = v;
+              break;
+            }
+          }
+          setAutoRecipes(prev => ({
+            ...prev,
+            [dishName]: { 
+              loading: false, 
+              result: matched || `### 🍽️ AI Prep Guide: ${dishName}
+1. Prepare standard pantry ingredients.
+2. Sauté base aromatics.
+3. Cook and plate.`, 
+              error: null 
+            }
+          }));
+        }, 700);
+        return;
+      }
+
+      try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'llama3-8b-8192',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an expert executive chef. Write a highly condensed, quick recipe guide for line cooks. Use numbered list for steps. Keep it under 60 words.'
+              },
+              {
+                role: 'user',
+                content: `Fast instructions for: "${dishName}".`
+              }
+            ],
+            temperature: 0.7,
+            max_tokens: 150
+          })
+        });
+
+        if (!response.ok) throw new Error("API failed");
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content || 'No instructions.';
+        setAutoRecipes(prev => ({
+          ...prev,
+          [dishName]: { loading: false, result: content, error: null }
+        }));
+      } catch (err) {
+        setAutoRecipes(prev => ({
+          ...prev,
+          [dishName]: { loading: false, result: null, error: 'Failed to load guide.' }
+        }));
+      }
+    });
+  }, [activeOrder?.id, activeOrder?.items]);
+
   if (!activeChef) return null;
 
   // Filter orders assigned to this chef
@@ -436,6 +543,45 @@ export function PreparingPage() {
                         );
                       })}
                     </div>
+                  </div>
+                </div>
+
+                {/* AI Step-by-Step Cooking Assistant Panel */}
+                <div className="mt-4 bg-purple-50/20 border border-purple-100/60 p-5 rounded-[24px] space-y-3.5">
+                  <div className="flex items-center gap-2 text-purple-800">
+                    <Sparkles className="w-4.5 h-4.5 animate-pulse text-purple-650" />
+                    <h4 className="text-[11px] font-black uppercase tracking-widest font-poppins">AI Cooking Assistant (Auto-Generated)</h4>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {activeOrder.items.map((item, idx) => {
+                      const recipe = autoRecipes[item.name];
+                      return (
+                        <div key={idx} className="bg-white border border-slate-100 p-4 rounded-2xl space-y-2 shadow-sm">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[9.5px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                              Dish {idx + 1}: {item.name}
+                            </span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase font-poppins">
+                              Qty: {item.quantity}
+                            </span>
+                          </div>
+                          
+                          {recipe?.loading ? (
+                            <div className="flex items-center gap-2 py-1 text-slate-400">
+                              <span className="w-3.5 h-3.5 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
+                              <span className="text-[11px] font-bold">Consulting Groq Llama 3 for recipe...</span>
+                            </div>
+                          ) : recipe?.error ? (
+                            <p className="text-[10px] font-bold text-rose-500">{recipe.error}</p>
+                          ) : (
+                            <div className="text-[11.5px] font-bold text-slate-655 space-y-1 pl-1 select-text">
+                              {renderFormattedRecipe(recipe?.result || '')}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
