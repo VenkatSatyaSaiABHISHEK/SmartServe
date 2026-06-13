@@ -21,7 +21,7 @@ export function PreparingPage() {
   const readyOrders = chefOrders.filter((o) => o.status === 'Ready');
 
   const onBreak = activeChef && activeChef.breakUntil && now < activeChef.breakUntil ? true : false;
-  const breakSecondsLeft = onBreak && activeChef.breakUntil ? Math.max(0, Math.round((activeChef.breakUntil - now) / 1000)) : 0;
+  const breakSecondsLeft = onBreak && activeChef && activeChef.breakUntil ? Math.max(0, Math.round((activeChef.breakUntil - now) / 1000)) : 0;
 
   // Tick the local state timer every second
   useEffect(() => {
