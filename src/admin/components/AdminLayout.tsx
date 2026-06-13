@@ -4,7 +4,7 @@ import { useAdminStore } from '../store/useAdminStore';
 import { 
   LayoutDashboard, ClipboardList, Utensils, Calendar, Users, 
   ChefHat, UserSquare2, Tv, MonitorPlay, MessageSquare, 
-  BarChart3, BellRing, UserCircle, Settings, LogOut, Menu, X, HelpCircle, QrCode
+  BarChart3, BellRing, UserCircle, Settings, LogOut, Menu, X, HelpCircle, QrCode, Boxes
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -29,6 +29,7 @@ export function AdminLayout() {
     { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/admin/orders', label: 'Live Orders', icon: ClipboardList },
     { path: '/admin/menu', label: 'Menu Manager', icon: Utensils },
+    { path: '/admin/inventory', label: 'Inventory Manager', icon: Boxes },
     { path: '/admin/reservations', label: 'Reservations', icon: Calendar },
     { path: '/admin/qr', label: 'QR Generator', icon: QrCode },
     { path: '/admin/waiters', label: 'Waiters Log', icon: UserSquare2 },

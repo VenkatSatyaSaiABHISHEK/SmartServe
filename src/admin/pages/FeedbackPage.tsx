@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAdminStore } from '../store/useAdminStore';
 import { Search, Star, MessageSquare, ShieldAlert, Heart, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -13,11 +13,14 @@ interface GuestReview {
   dishName: string;
 }
 
-
-
 export function FeedbackPage() {
-  const { reviews, reviewsLoaded } = useAdminStore();
+  const { reviews, reviewsLoaded, listenToReviews } = useAdminStore();
   const [ratingFilter, setRatingFilter] = useState<'All' | '5' | '4' | '3'>('All');
+
+  useEffect(() => {
+    const unsub = listenToReviews();
+    return () => unsub();
+  }, [listenToReviews]);
 
   // Filter reviews
   const filteredReviews = reviews.filter((rev) => {

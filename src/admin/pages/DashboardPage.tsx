@@ -1,14 +1,25 @@
+import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAdminStore } from '../store/useAdminStore';
 import { useChefStore } from '../../chef/store/useChefStore';
+import { useInventoryStore } from '../store/useInventoryStore';
 import { 
   TrendingUp, Users, Utensils, DollarSign, Calendar, Star,
-  Bell, AlertCircle, ShoppingBag, ArrowUpRight
+  Bell, AlertCircle, ShoppingBag, ArrowUpRight, Boxes
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function DashboardPage() {
   const { menuItems, reservations, notifications, currency } = useAdminStore();
   const chefOrders = useChefStore(state => state.orders);
+  
+  const ingredients = useInventoryStore(state => state.ingredients);
+  const lowStockIngredients = ingredients.filter(i => i.quantity < i.minStock);
+
+  useEffect(() => {
+    const unsub = useInventoryStore.getState().listenToAll();
+    return () => unsub();
+  }, []);
 
   const completedOrDeliveredOrders = chefOrders.filter(o => (o.status === 'Completed' || o.status === 'Delivered' || o.status === 'Ready' || o.paymentStatus === 'Paid') && o.status !== 'Cancelled');
   const completedOrders = chefOrders.filter(o => o.status === 'Completed' || o.status === 'Delivered').length;
@@ -66,6 +77,25 @@ export function DashboardPage() {
           Shift Date: <span className="text-[#0f172a] font-black">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
         </div>
       </div>
+
+      {/* Critical Stock Warning Banner */}
+      {lowStockIngredients.length > 0 && (
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-4.5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-start gap-3 text-xs font-bold text-red-800">
+            <AlertCircle className="w-5 h-5 text-red-650 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-extrabold text-[13px] block mb-0.5">Critical Inventory Shortage Alert</span>
+              <span className="text-red-700">There are <span className="underline font-black">{lowStockIngredients.length} ingredients</span> running below their minimum stock levels. Replenish immediately to avoid order processing delays.</span>
+            </div>
+          </div>
+          <Link
+            to="/admin/inventory"
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-[10.5px] font-black uppercase tracking-wider shadow-sm transition-colors text-center shrink-0"
+          >
+            Manage Stock
+          </Link>
+        </div>
+      )}
 
       {/* Main Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -280,34 +310,77 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent reservations grid map preview */}
-      <div className="bg-white border border-[#f1f5f9] rounded-[28px] p-6.5 shadow-sm space-y-5">
-        <div className="flex justify-between items-center">
-          <h3 className="font-extrabold text-[15.5px] text-[#0f172a] font-poppins tracking-tight">Active Floor Bookings</h3>
-          <span className="text-[10.5px] font-bold text-slate-400">Total Reservations Confirmed: {reservations.filter(r => r.status === 'Confirmed').length}</span>
+      {/* Reservations & Inventory Quickview Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Active Floor Bookings */}
+        <div className="lg:col-span-2 bg-white border border-[#f1f5f9] rounded-[28px] p-6.5 shadow-sm space-y-5">
+          <div className="flex justify-between items-center">
+            <h3 className="font-extrabold text-[15.5px] text-[#0f172a] font-poppins tracking-tight">Active Floor Bookings</h3>
+            <span className="text-[10.5px] font-bold text-slate-400">Total Reservations Confirmed: {reservations.filter(r => r.status === 'Confirmed').length}</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4.5">
+            {reservations.slice(0, 4).map((res) => (
+              <div key={res.id} className="bg-[#fafafc] border border-[#f1f5f9] rounded-2xl p-4.5 space-y-3">
+                <div className="flex justify-between items-start">
+                  <span className="font-black text-xs text-[#0f172a] truncate max-w-[120px]">{res.customerName}</span>
+                  <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                    res.status === 'Confirmed' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                    res.status === 'Completed' ? 'bg-green-50 text-green-600 border border-green-100' :
+                    res.status === 'Pending' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                    'bg-slate-100 text-slate-400'
+                  }`}>
+                    {res.status}
+                  </span>
+                </div>
+                <div className="text-[11px] font-bold text-slate-400 space-y-1">
+                  <div>Table {res.tableNumber} • {res.guestCount} Guests</div>
+                  <div>Time: {res.time}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4.5">
-          {reservations.slice(0, 4).map((res) => (
-            <div key={res.id} className="bg-[#fafafc] border border-[#f1f5f9] rounded-2xl p-4.5 space-y-3">
-              <div className="flex justify-between items-start">
-                <span className="font-black text-xs text-[#0f172a] truncate max-w-[120px]">{res.customerName}</span>
-                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                  res.status === 'Confirmed' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
-                  res.status === 'Completed' ? 'bg-green-50 text-green-600 border border-green-100' :
-                  res.status === 'Pending' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                  'bg-slate-100 text-slate-400'
+        {/* Inventory Stock Status Widget */}
+        <div className="bg-white border border-[#f1f5f9] rounded-[28px] p-6.5 shadow-sm flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+              <h3 className="font-extrabold text-[15.5px] text-[#0f172a] font-poppins tracking-tight">Stock Summary</h3>
+              <Boxes className="w-5 h-5 text-indigo-500" />
+            </div>
+
+            <div className="space-y-3.5">
+              <div className="flex justify-between text-xs font-bold text-slate-600">
+                <span>Total Catalog Items:</span>
+                <span className="text-slate-900 font-extrabold">{ingredients.length} items</span>
+              </div>
+              <div className="flex justify-between text-xs font-bold text-slate-600">
+                <span>Low Stock Items:</span>
+                <span className={`font-extrabold px-2 py-0.5 rounded text-[10.5px] ${
+                  lowStockIngredients.length > 0 ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'
                 }`}>
-                  {res.status}
+                  {lowStockIngredients.length} Alerts
                 </span>
               </div>
-              <div className="text-[11px] font-bold text-slate-400 space-y-1">
-                <div>Table {res.tableNumber} • {res.guestCount} Guests</div>
-                <div>Time: {res.time}</div>
+              <div className="flex justify-between text-xs font-bold text-slate-600">
+                <span>Wholesale Suppliers:</span>
+                <span className="text-slate-900 font-extrabold">
+                  {useInventoryStore.getState().suppliers.length} partners
+                </span>
               </div>
             </div>
-          ))}
+          </div>
+
+          <Link
+            to="/admin/inventory"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-colors text-center block mt-5"
+          >
+            Inventory Hub
+          </Link>
         </div>
+
       </div>
 
     </div>

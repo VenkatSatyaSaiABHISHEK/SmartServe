@@ -27,6 +27,7 @@ interface WaiterState {
   listenToOrders: () => (() => void);
   listenToTables: () => (() => void);
   listenToNotifications: () => (() => void);
+  reassignTableToFreeWaiter: (tableId: string, currentWaiterId: string) => Promise<string | null>;
 }
 
 const playChimeSound = () => {
@@ -302,7 +303,9 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
           price: data.price || (data.prepTimeMins * 3.5 + 10.0),
           status: data.status,
           timeOrdered: data.timeReceived,
-          createdAt: data.createdAt
+          createdAt: data.createdAt,
+          paymentStatus: data.paymentStatus,
+          paymentMethod: data.paymentMethod
         });
       });
       items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -368,5 +371,35 @@ export const useWaiterStore = create<WaiterState>((set, get) => ({
 
       set({ notifications: items });
     });
+  },
+
+  reassignTableToFreeWaiter: async (tableId, currentWaiterId) => {
+    const cleanId = tableId.startsWith('T') ? tableId : `T${tableId}`;
+    const tableNum = parseInt(tableId.replace('T', '').replace('t', ''));
+    
+    const { waiters, tables } = get();
+    const candidateWaiters = waiters.filter(w => w.onlineStatus && w.id !== currentWaiterId);
+    
+    if (candidateWaiters.length > 0) {
+      // Sort candidates by workload (assigned tables count)
+      const sortedCandidates = candidateWaiters.map(w => {
+        const load = tables.filter(t => t.assignedWaiterId === w.id).length;
+        return { waiter: w, load };
+      }).sort((a, b) => a.load - b.load);
+      
+      const selectedWaiter = sortedCandidates[0].waiter;
+      
+      // Assign table to the selected free waiter
+      await get().assignTable(tableId, selectedWaiter.id);
+      
+      // Create notification for the new waiter
+      await get().addNotification({
+        type: 'table_ready',
+        message: `Table ${tableNum}: Order reassigned to you for quick collection! 🛎️`
+      });
+      
+      return selectedWaiter.name;
+    }
+    return null;
   }
 }));

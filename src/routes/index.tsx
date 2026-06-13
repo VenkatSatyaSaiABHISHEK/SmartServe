@@ -34,6 +34,7 @@ import { LoginPage as AdminLoginPage } from '../admin/pages/LoginPage';
 import { DashboardPage as AdminDashboardPage } from '../admin/pages/DashboardPage';
 import { OrdersPage as AdminOrdersPage } from '../admin/pages/OrdersPage';
 import { MenuManagementPage as AdminMenuManagementPage } from '../admin/pages/MenuManagementPage';
+import { InventoryPage as AdminInventoryPage } from '../admin/pages/InventoryPage';
 import { ReservationPage as AdminReservationPage } from '../admin/pages/ReservationPage';
 import { QrGeneratorPage as AdminQrGeneratorPage } from '../admin/pages/QrGeneratorPage';
 import { WaiterManagementPage as AdminWaiterManagementPage } from '../admin/pages/WaiterManagementPage';
@@ -186,6 +187,10 @@ export const router = createBrowserRouter([
           {
             path: "menu",
             element: <AdminMenuManagementPage />,
+          },
+          {
+            path: "inventory",
+            element: <AdminInventoryPage />,
           },
           {
             path: "reservations",

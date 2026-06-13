@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Chef, ChefOrder } from '../types';
 import { db } from '../../firebase/config';
 import { doc, getDoc, getDocs, collection, onSnapshot, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { useInventoryStore } from '../../admin/store/useInventoryStore';
 
 interface ChefState {
   activeChef: Chef | null;
@@ -161,6 +162,16 @@ export const useChefStore = create<ChefState>((set, get) => ({
       await updateDoc(doc(db, 'chefs', assignedChefId), {
         activeLoad: activeLoadCount
       });
+
+      // Auto-deduct ingredients mapping
+      try {
+        const { deductIngredientsForOrder } = useInventoryStore.getState();
+        if (deductIngredientsForOrder) {
+          await deductIngredientsForOrder(items);
+        }
+      } catch (deductErr) {
+        console.error("Failed to deduct ingredients for order:", deductErr);
+      }
     } catch (e) {
       console.error("Error creating new order in Firestore:", e);
     }

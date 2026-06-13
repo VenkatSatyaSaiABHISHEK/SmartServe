@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, ChefHat, Bike, MapPin, Bell, User, ChevronLeft, X } from 'lucide-react';
+import { Check, ChefHat, Bike, MapPin, Bell, User, ChevronLeft, X, Star } from 'lucide-react';
 import { useOrderStore } from '../store/useOrderStore';
 import { useCartStore } from '../store/useCartStore';
 import { useAdminStore } from '../../admin/store/useAdminStore';
 import { useWaiterStore } from '../../waiter/store/useWaiterStore';
 import { useChefStore } from '../../chef/store/useChefStore';
 import { db } from '../../firebase/config';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
@@ -41,6 +41,13 @@ export function OrderTrackingPage() {
   const [activeOrdersData, setActiveOrdersData] = useState<Record<string, any>>({});
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [isCardDismissed, setIsCardDismissed] = useState(false);
+
+  // Feedback states
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [selectedDish, setSelectedDish] = useState('');
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [guestName, setGuestName] = useState('');
 
   // Redirect to home if no active order is tracked
   useEffect(() => {
@@ -292,6 +299,43 @@ export function OrderTrackingPage() {
   };
 
   const currentStepIndex = TIMELINE.findIndex(step => step.id === status);
+
+  // Extract unique items ordered by the customer
+  const orderedItems: string[] = [];
+  orderIdsList.forEach((id) => {
+    const data = activeOrdersData[id];
+    if (data && data.items) {
+      data.items.forEach((it: any) => {
+        if (!orderedItems.includes(it.name)) {
+          orderedItems.push(it.name);
+        }
+      });
+    }
+  });
+
+  const handleFeedbackSubmit = async () => {
+    try {
+      const reviewId = `REV-${Date.now()}-${Math.floor(Math.random() * 900) + 100}`;
+      const dishToRate = selectedDish || (orderedItems[0] || 'General Experience');
+      const reviewerName = guestName.trim() || `Table ${currentTableNum} Guest`;
+      const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(reviewerName)}`;
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      await setDoc(doc(db, 'reviews', reviewId), {
+        id: reviewId,
+        customerName: reviewerName,
+        avatar: avatarUrl,
+        rating: rating,
+        comment: feedbackComment,
+        date: todayStr,
+        dishName: dishToRate
+      });
+
+      setFeedbackSubmitted(true);
+    } catch (e) {
+      console.error("Error submitting feedback:", e);
+    }
+  };
 
   return (
     <div className="h-screen w-full max-w-md mx-auto relative overflow-hidden bg-[#fafafc] flex flex-col font-sans select-none">
@@ -732,6 +776,113 @@ export function OrderTrackingPage() {
                   </span>
                   <p className="text-[9.5px] text-slate-400 font-bold mt-1">via {orderPaymentMethod?.toUpperCase() || 'GPAY'}</p>
                 </div>
+              </div>
+            )}
+
+            {/* Guest Feedback Submission Form */}
+            {status === 'Delivered' && (
+              <div className="bg-white rounded-[28px] p-5 border border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.02)] mt-4 space-y-4">
+                {feedbackSubmitted ? (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex flex-col items-center py-6 text-center space-y-3"
+                  >
+                    <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
+                      <Check className="w-6 h-6 stroke-[3]" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-slate-800 font-poppins">Feedback Submitted!</h4>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Thank you for sharing your experience with us.</p>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="space-y-4.5">
+                    <div className="flex items-center justify-between border-b border-slate-50 pb-2">
+                      <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest font-poppins">Share Your Feedback</h3>
+                      <span className="text-[9.5px] font-black text-indigo-650 bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded uppercase">Table {currentTableNum}</span>
+                    </div>
+
+                    {/* Dish selector chips */}
+                    {orderedItems.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-wider block">Which dish did you rate?</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {orderedItems.map(dish => (
+                            <button
+                              key={dish}
+                              type="button"
+                              onClick={() => setSelectedDish(dish)}
+                              className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                (selectedDish || orderedItems[0]) === dish
+                                  ? 'bg-slate-900 text-white shadow-sm shadow-slate-900/10'
+                                  : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                              }`}
+                            >
+                              {dish}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Star selection */}
+                    <div className="flex flex-col items-center py-1 border-y border-slate-50/50 space-y-1.5">
+                      <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest">Select Rating Score</span>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setRating(star)}
+                            className="p-0.5 hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                          >
+                            <Star
+                              className={`w-7 h-7 ${
+                                star <= rating
+                                  ? 'fill-amber-400 stroke-amber-500'
+                                  : 'fill-slate-100 stroke-slate-200'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Name & comments inputs */}
+                    <div className="space-y-3.5">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black text-slate-450 uppercase tracking-wider block pl-1">Your Nickname (Optional)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Liam (Defaults to Guest)"
+                          value={guestName}
+                          onChange={(e) => setGuestName(e.target.value)}
+                          className="w-full bg-[#fafafc]/80 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-300 focus:bg-white transition-all shadow-inner"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black text-slate-450 uppercase tracking-wider block pl-1">Review Comments</label>
+                        <textarea
+                          placeholder="How was the food flavor, plating, and delivery speed?..."
+                          rows={3}
+                          value={feedbackComment}
+                          onChange={(e) => setFeedbackComment(e.target.value)}
+                          className="w-full bg-[#fafafc]/80 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-300 focus:bg-white transition-all resize-none shadow-inner"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleFeedbackSubmit}
+                      disabled={!feedbackComment.trim()}
+                      className="w-full py-3.5 bg-slate-900 hover:bg-slate-850 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest cursor-pointer shadow-md shadow-slate-900/10 active:scale-98 transition-all"
+                    >
+                      Submit Review
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

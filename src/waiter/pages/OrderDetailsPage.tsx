@@ -1,17 +1,29 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useWaiterStore } from '../store/useWaiterStore';
 import { 
-  ChevronLeft, Clock, ChefHat, CheckSquare, Square, CreditCard, MessageSquare, HelpCircle, FileText
+  ChevronLeft, Clock, ChefHat, CheckSquare, Square, CreditCard, MessageSquare, HelpCircle, FileText, X, CheckCircle2, DollarSign, Star
 } from 'lucide-react';
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { db } from '../../firebase/config';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 
 export function OrderDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { orders, updateOrderStatus } = useWaiterStore();
+  const { orders, updateOrderStatus, clearTable } = useWaiterStore();
   
   const order = orders.find(o => o.id === id);
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
+
+  // Waiter Billing States
+  const [showBillingModal, setShowBillingModal] = useState(false);
+  const [billingStep, setBillingStep] = useState<'receipt' | 'payment' | 'qr' | 'success' | 'feedback'>('receipt');
+  const [billingMethod, setBillingMethod] = useState<'cash' | 'qr'>('cash');
+  const [rating, setRating] = useState(5);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackGuestName, setFeedbackGuestName] = useState('');
+  const [isSimulatingPayment, setIsSimulatingPayment] = useState(false);
 
   if (!order) {
     return (
@@ -184,7 +196,310 @@ export function OrderDetailsPage() {
             {order.status === 'Ready' ? 'Collect from Kitchen' : 'Mark Delivered to Table'}
           </button>
         )}
+
+        {order.status === 'Delivered' && order.paymentStatus !== 'Paid' && (
+          <button 
+            onClick={() => {
+              setShowBillingModal(true);
+              setBillingStep('receipt');
+            }}
+            className="w-full py-4.5 rounded-[22px] font-black text-white text-sm uppercase tracking-wider bg-gradient-to-r from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20 active:scale-95 transition-all mt-4 cursor-pointer flex items-center justify-center gap-2"
+          >
+            <CreditCard className="w-4.5 h-4.5" />
+            Generate Bill
+          </button>
+        )}
       </div>
+
+      {/* Waiter Billing Modal */}
+      <AnimatePresence>
+        {showBillingModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+          >
+            <motion.div 
+              initial={{ y: 100 }}
+              animate={{ y: 0 }}
+              exit={{ y: 100 }}
+              className="bg-white w-full sm:max-w-md rounded-t-[32px] sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-black text-slate-800 font-poppins">Table {order.tableId} Billing</h3>
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowBillingModal(false);
+                    setBillingStep('receipt');
+                  }} 
+                  className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer hover:bg-slate-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {billingStep === 'receipt' && (
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150/40">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Order items</span>
+                      <div className="space-y-2 text-xs font-bold text-slate-600">
+                        {order.items.map((item: any, idx: number) => (
+                          <div key={idx} className="flex justify-between">
+                            <span>{item.name} x{item.quantity}</span>
+                            <span>₹{((item.price || order.price / order.items.length) * item.quantity).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Breakdown */}
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150/40 space-y-2 text-xs font-bold text-slate-500">
+                      <div className="flex justify-between">
+                        <span>Subtotal</span>
+                        <span>₹{(order.price / 1.05).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>GST (5%)</span>
+                        <span>₹{(order.price - (order.price / 1.05)).toFixed(2)}</span>
+                      </div>
+                      <div className="border-t border-slate-200/50 my-2 pt-2 flex justify-between text-[#0f172a] text-sm font-black font-poppins">
+                        <span>Grand Total</span>
+                        <span>₹{order.price.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Select Billing Method</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => {
+                            setBillingMethod('cash');
+                            setBillingStep('payment');
+                          }}
+                          className="py-4 rounded-2xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/10 flex flex-col items-center gap-2 cursor-pointer transition-all text-xs font-black uppercase text-slate-700"
+                        >
+                          <DollarSign className="w-5 h-5 text-emerald-600" />
+                          Cash Payment
+                        </button>
+                        <button
+                          onClick={() => {
+                            setBillingMethod('qr');
+                            setBillingStep('qr');
+                          }}
+                          className="py-4 rounded-2xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/10 flex flex-col items-center gap-2 cursor-pointer transition-all text-xs font-black uppercase text-slate-700"
+                        >
+                          <CreditCard className="w-5 h-5 text-indigo-600" />
+                          Scan QR Code
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {billingStep === 'payment' && (
+                  <div className="space-y-4 text-center py-2">
+                    <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-3xl text-center">
+                      <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest block">Grand Total Due</span>
+                      <span className="text-3xl font-black text-emerald-900 font-poppins mt-1 block">₹{order.price.toFixed(2)}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed max-w-[280px] mx-auto">
+                      Collect cash from customer. Once received, click confirm below to complete order and clear the table.
+                    </p>
+
+                    <button
+                      onClick={async () => {
+                        await updateDoc(doc(db, 'orders', order.id), { 
+                          paymentStatus: 'Paid',
+                          paymentMethod: 'cash',
+                          status: 'Completed' 
+                        });
+                        await clearTable(order.tableId);
+                        setBillingStep('success');
+                      }}
+                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-md shadow-emerald-500/10 cursor-pointer active:scale-95 transition-all"
+                    >
+                      Confirm Cash Received
+                    </button>
+                  </div>
+                )}
+
+                {billingStep === 'qr' && (
+                  <div className="space-y-4 py-2 text-center">
+                    <div className="w-44 h-44 mx-auto bg-slate-50 border-2 border-dashed border-indigo-200 rounded-3xl p-3 flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
+                      <svg className="w-32 h-32 text-slate-800" viewBox="0 0 100 100">
+                        <path d="M5,5 h30 v30 h-30 z M15,15 h10 v10 h-10 z M65,5 h30 v30 h-30 z M75,15 h10 v10 h-10 z M5,65 h30 v30 h-30 z M15,75 h10 v10 h-10 z" fill="currentColor" />
+                        <path d="M45,15 h10 v10 h-10 z M45,35 h15 v10 h-15 z M35,45 h10 v10 h-10 z M15,45 h10 v10 h-10 z M75,45 h10 v10 h-10 z M65,55 h10 v20 h-10 z M45,75 h10 v10 h-10 z M55,65 h10 v15 h-10 z M75,75 h10 v10 h-10 z" fill="currentColor" />
+                      </svg>
+                      
+                      <motion.div 
+                        animate={{ y: [-10, 150, -10] }}
+                        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                        className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Dynamic Payment QR</p>
+                      <p className="text-slate-500 text-xs leading-relaxed max-w-[280px] mx-auto mt-1">
+                        Have the customer scan this code on your screen to pay <strong className="text-slate-850">₹{order.price.toFixed(2)}</strong>.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        setIsSimulatingPayment(true);
+                        setTimeout(async () => {
+                          await updateDoc(doc(db, 'orders', order.id), { 
+                            paymentStatus: 'Paid',
+                            paymentMethod: 'upi',
+                            status: 'Completed' 
+                          });
+                          await clearTable(order.tableId);
+                          setIsSimulatingPayment(false);
+                          setBillingStep('success');
+                        }, 1500);
+                      }}
+                      disabled={isSimulatingPayment}
+                      className={`w-full py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 border transition-all ${
+                        isSimulatingPayment 
+                          ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-wait' 
+                          : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 cursor-pointer'
+                      }`}
+                    >
+                      {isSimulatingPayment ? (
+                        <>
+                          <span className="w-4 h-4 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
+                          Verifying payment...
+                        </>
+                      ) : (
+                        'Simulate Scan & Pay'
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {billingStep === 'success' && (
+                  <div className="space-y-5 text-center py-4">
+                    <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 mx-auto">
+                      <CheckCircle2 className="w-8 h-8 stroke-[2]" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black text-slate-800 font-poppins">Thank you!</h4>
+                      <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider">Payment confirmed. Table cleared.</p>
+                    </div>
+
+                    <div className="flex flex-col gap-2 pt-2">
+                      <button
+                        onClick={() => setBillingStep('feedback')}
+                        className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-md shadow-blue-500/10 cursor-pointer transition-all"
+                      >
+                        Give Feedback
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowBillingModal(false);
+                          setBillingStep('receipt');
+                        }}
+                        className="w-full py-4 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl font-bold text-xs uppercase tracking-wider cursor-pointer transition-all"
+                      >
+                        Skip & Close
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {billingStep === 'feedback' && (
+                  <div className="space-y-4 py-2">
+                    <h4 className="text-base font-black text-slate-850 font-poppins text-center">Guest Experience Feedback</h4>
+                    
+                    <div className="flex justify-center gap-1.5 py-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setRating(star)}
+                          className="cursor-pointer transition-transform active:scale-90"
+                        >
+                          <Star 
+                            className={`w-8 h-8 ${
+                              star <= rating 
+                                ? 'fill-amber-400 text-amber-400' 
+                                : 'text-slate-300 hover:text-amber-300'
+                            }`} 
+                          />
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Customer Name (Optional)</label>
+                        <input
+                          type="text"
+                          placeholder="Guest name"
+                          value={feedbackGuestName}
+                          onChange={(e) => setFeedbackGuestName(e.target.value)}
+                          className="w-full bg-[#fafafc] border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Comments / Suggestions</label>
+                        <textarea
+                          rows={3}
+                          placeholder="How was the food and service?"
+                          value={feedbackComment}
+                          onChange={(e) => setFeedbackComment(e.target.value)}
+                          className="w-full bg-[#fafafc] border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-855 focus:outline-none focus:border-slate-400 resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        try {
+                          const reviewId = `REV-${Date.now()}-${Math.floor(Math.random() * 900) + 100}`;
+                          const reviewerName = feedbackGuestName.trim() || `Table ${order.tableId} Guest`;
+                          const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(reviewerName)}`;
+                          const todayStr = new Date().toISOString().split('T')[0];
+                          const dishName = order.items?.[0]?.name || 'General Dining';
+
+                          await setDoc(doc(db, 'reviews', reviewId), {
+                            id: reviewId,
+                            customerName: reviewerName,
+                            avatar: avatarUrl,
+                            rating: rating,
+                            comment: feedbackComment,
+                            date: todayStr,
+                            dishName: dishName
+                          });
+
+                          setFeedbackGuestName('');
+                          setFeedbackComment('');
+                          setRating(5);
+                          setShowBillingModal(false);
+                          setBillingStep('receipt');
+                        } catch (e) {
+                          console.error("Error writing feedback:", e);
+                        }
+                      }}
+                      className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-md shadow-blue-500/10 cursor-pointer transition-all"
+                    >
+                      Submit Feedback
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
